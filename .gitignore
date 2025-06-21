@@ -1,0 +1,25 @@
+# 그누보드 설정 파일
+data/dbconfig.php
+data/config.php
+
+# 캐시 및 세션
+data/cache/
+data/session/
+data/log/
+data/file/
+data/editor/
+
+# 회원 데이터
+data/member/
+data/member_image/
+
+# 임시 파일
+data/tmp/
+data/visit/
+
+# 기타
+*.log
+.env
+.DS_Store
+Thumbs.db
+
