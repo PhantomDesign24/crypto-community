@@ -17,9 +17,7 @@ if ($w == 'u' && $is_admin == 'super') {
         alert('데모 화면에서는 하실(보실) 수 없는 작업입니다.');
 }
 
-if (run_replace('register_member_chk_captcha', !chk_captcha(), $w)) {
-    alert('자동등록방지 숫자가 틀렸습니다.');
-}
+
 
 if($w == 'u')
     $mb_id = isset($_SESSION['ss_mb_id']) ? trim($_SESSION['ss_mb_id']) : '';
