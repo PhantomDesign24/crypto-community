@@ -767,9 +767,18 @@ include_once(G5_PATH.'/head.php');
     }
     
     .listing-card, .event-card {
-        margin-bottom: 20px;
     }
-    
+    .listing-content h5 { font-size:1rem; }
+	.text-muted { font-size:0.75em; }
+	.listing-image {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    position: relative;
+    overflow: hidden;
+}
+.lead { font-size:1rem; }
+.feature-item p { font-size:min(14px, 3vw); }
     .ticker-content {
         animation-duration: 40s;
     }
@@ -779,7 +788,6 @@ include_once(G5_PATH.'/head.php');
     }
     
     .stats-grid {
-        grid-template-columns: 1fr;
         gap: 15px;
     }
 }
@@ -1135,6 +1143,366 @@ include_once(G5_PATH.'/head.php');
         </div>
     </div>
 </section>
+
+<!-- ===================================
+     프로젝트 진행 사례 섹션
+     =================================== -->
+<section class="cmk-projects-showcase" style="background: #f8f9fa; padding: 80px 0; overflow: hidden;">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="h1 fw-bold mb-3">
+                <i class="bi bi-rocket-takeoff text-primary"></i>
+                프로젝트 진행 사례
+            </h2>
+            <p class="lead text-muted">성공적으로 진행한 코인 마케팅 프로젝트</p>
+        </div>
+        
+        <div class="cmk-ps-slider-wrapper position-relative">
+            <button class="cmk-ps-nav cmk-ps-nav-prev d-none d-md-flex" onclick="slideProjects('prev')">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button class="cmk-ps-nav cmk-ps-nav-next d-none d-md-flex" onclick="slideProjects('next')">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+            
+            <div class="cmk-ps-slider-container">
+                <div class="cmk-ps-slider d-flex" id="projectSlider">
+                    <?php
+                    $projects = [
+                        ['name' => 'BONK', 'file' => 'BONK.png'],
+                        ['name' => 'ACS', 'file' => 'ACS(액세스플토콜.png', 'full' => '액세스플토콜'],
+                        ['name' => 'AHT', 'file' => 'AHT(아하토큰.png', 'full' => '아하토큰'],
+                        ['name' => 'ALT', 'file' => 'ALT알트레이어.png', 'full' => '알트레이어'],
+                        ['name' => 'ANIME', 'file' => 'ANIME애니메코인.png', 'full' => '애니메코인'],
+                        ['name' => 'ARPA', 'file' => 'ARPA(알파.png', 'full' => '알파'],
+                        ['name' => 'ASTR', 'file' => 'ASTR아스타.png', 'full' => '아스타'],
+                        ['name' => 'BEAM', 'file' => 'BEAM(빔.png', 'full' => '빔'],
+                        ['name' => 'BIGTIME', 'file' => 'BIGTIME빅타임.png', 'full' => '빅타임'],
+                        ['name' => 'BLAST', 'file' => 'BLAST(블라스트.png', 'full' => '블라스트'],
+                        ['name' => 'NCT', 'file' => 'NCT폴리스웜.png', 'full' => '폴리스웜'],
+                        ['name' => 'OAS', 'file' => 'OAS(오아시스.png', 'full' => '오아시스'],
+                        ['name' => 'BRETT', 'file' => 'BRETT브렛.png', 'full' => '브렛'],
+                        ['name' => 'CKB', 'file' => 'CKB(너보스.png', 'full' => '너보스'],
+                        ['name' => 'DGB', 'file' => 'DGB(디지바이트.png', 'full' => '디지바이트'],
+                        ['name' => 'EPT', 'file' => 'EPT(밸런스.png', 'full' => '밸런스'],
+                        ['name' => 'GO', 'file' => 'GO(고체인.png', 'full' => '고체인'],
+                        ['name' => 'JASMY', 'file' => 'JASMY재스미코인.png', 'full' => '재스미코인'],
+                        ['name' => 'LWA', 'file' => 'LWA(루미웨이브.png', 'full' => '루미웨이브'],
+                        ['name' => 'MEW', 'file' => 'MEW(캣인어독스월드.png', 'full' => '캣인어독스월드'],
+                        ['name' => 'RVN', 'file' => 'RVN(레이븐코인.png', 'full' => '레이븐코인'],
+                        ['name' => 'SC', 'file' => 'SC(시아코인.png', 'full' => '시아코인'],
+                        ['name' => 'SOPH', 'file' => 'SOPH소폰.png', 'full' => '소폰'],
+                        ['name' => 'OBSR', 'file' => 'OBSR(옵저버.png', 'full' => '옵저버'],
+                        ['name' => 'OXT', 'file' => 'OXT오키드.png', 'full' => '오키드'],
+                        ['name' => 'PENGU', 'file' => 'PENGU(펏지펭귄.png', 'full' => '펏지펭귄'],
+                        ['name' => 'PEPE', 'file' => 'PEPE.png'],
+                        ['name' => 'POKT', 'file' => 'POKT포켓네트워크.png', 'full' => '포켓네트워크'],
+                        ['name' => 'QTCON', 'file' => 'QTCON(퀴즈톡.png', 'full' => '퀴즈톡'],
+                        ['name' => 'RLY', 'file' => 'RLY랠리.png', 'full' => '랠리'],
+                        ['name' => 'W', 'file' => 'W웜홀.png', 'full' => '웜홀'],
+                        ['name' => 'SWELL', 'file' => 'SWELL(스웰네트워크.png', 'full' => '스웰네트워크'],
+                        ['name' => 'VTHO', 'file' => 'VTHO(비토르토큰.png', 'full' => '비토르토큰']
+                    ];
+                    
+                    foreach ($projects as $project) {
+                        $full_name = isset($project['full']) ? $project['full'] : $project['name'];
+                    ?>
+                    <div class="cmk-ps-item">
+                        <div class="cmk-ps-item-inner bg-white rounded-3 p-3 text-center h-100 shadow-sm">
+                            <div class="cmk-ps-logo mx-auto mb-3">
+                                <img src="<?php echo G5_IMG_URL; ?>/<?php echo $project['file']; ?>" 
+                                     alt="<?php echo $full_name; ?>" 
+                                     class="img-fluid">
+                            </div>
+                            <h5 class="cmk-ps-name fw-bold mb-1"><?php echo $project['name']; ?></h5>
+                            <p class="cmk-ps-fullname text-muted small mb-0"><?php echo $full_name; ?></p>
+                        </div>
+                    </div>
+                    <?php } ?>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 슬라이더 인디케이터 -->
+        <div class="cmk-ps-indicators d-flex justify-content-center mt-4" id="projectIndicators"></div>
+    </div>
+</section>
+
+<style>
+/* ===================================
+ * 프로젝트 진행 사례 섹션 스타일
+ * =================================== */
+
+/* 슬라이더 래퍼 */
+.cmk-ps-slider-wrapper {
+    position: relative;
+}
+
+/* 네비게이션 버튼 */
+.cmk-ps-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    background: white;
+    border: none;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.cmk-ps-nav:hover {
+    background: #0d6efd;
+    color: white;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.cmk-ps-nav-prev {
+    left: -60px;
+}
+
+.cmk-ps-nav-next {
+    right: -60px;
+}
+
+.cmk-ps-nav i {
+    font-size: 24px;
+}
+
+/* 슬라이더 컨테이너 */
+.cmk-ps-slider-container {
+    overflow: hidden;
+    margin: 0 -10px;
+}
+
+.cmk-ps-slider {
+    transition: transform 0.5s ease;
+    padding: 10px 0;
+}
+
+/* 프로젝트 아이템 */
+.cmk-ps-item {
+    flex: 0 0 16.666%;
+    padding: 0 10px;
+}
+
+.cmk-ps-item-inner {
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.cmk-ps-item-inner:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+}
+
+.cmk-ps-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #f8f9fa;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cmk-ps-logo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.cmk-ps-name {
+    font-size: 16px;
+    color: #212529;
+}
+
+.cmk-ps-fullname {
+    font-size: 12px;
+}
+
+/* 인디케이터 */
+.cmk-ps-indicators {
+    gap: 8px;
+}
+
+.cmk-ps-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #dee2e6;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: none;
+}
+
+.cmk-ps-indicator.active {
+    width: 32px;
+    border-radius: 4px;
+    background: #0d6efd;
+}
+
+/* 모바일 */
+@media (max-width: 768px) {
+    /* 프로젝트 슬라이더 모바일 */
+    .cmk-ps-item {
+        flex: 0 0 50%;
+    }
+    
+    .cmk-ps-logo {
+        width: 60px;
+        height: 60px;
+        padding: 10px;
+    }
+    
+    .cmk-ps-name {
+        font-size: 14px;
+    }
+    
+    .cmk-ps-fullname {
+        font-size: 11px;
+    }
+    
+    .cmk-ps-item-inner {
+        padding: 0.75rem !important;
+    }
+    
+    /* 모바일에서 터치 스크롤 */
+    .cmk-ps-slider-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    
+    .cmk-ps-slider-container::-webkit-scrollbar {
+        display: none;
+    }
+}
+</style>
+
+
+
+<script>
+// 프로젝트 슬라이더 기능
+let currentSlide = 0;
+let itemsPerView = window.innerWidth > 768 ? 6 : 2;
+const totalItems = 33;
+const totalSlides = Math.ceil(totalItems / itemsPerView);
+
+// 인디케이터 생성
+function createIndicators() {
+    const indicatorsContainer = document.getElementById('projectIndicators');
+    indicatorsContainer.innerHTML = '';
+    
+    for (let i = 0; i < totalSlides; i++) {
+        const indicator = document.createElement('button');
+        indicator.className = 'cmk-ps-indicator' + (i === 0 ? ' active' : '');
+        indicator.onclick = () => goToSlide(i);
+        indicatorsContainer.appendChild(indicator);
+    }
+}
+
+// 슬라이드 이동
+function slideProjects(direction) {
+    if (direction === 'next') {
+        currentSlide = (currentSlide + 1) % totalSlides;
+    } else {
+        currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+    }
+    updateSlider();
+}
+
+// 특정 슬라이드로 이동
+function goToSlide(index) {
+    currentSlide = index;
+    updateSlider();
+}
+
+// 슬라이더 업데이트
+function updateSlider() {
+    const slider = document.getElementById('projectSlider');
+    const itemWidth = 100 / itemsPerView;
+    const translateX = -currentSlide * 100;
+    slider.style.transform = `translateX(${translateX}%)`;
+    
+    // 인디케이터 업데이트
+    document.querySelectorAll('.cmk-ps-indicator').forEach((indicator, index) => {
+        indicator.classList.toggle('active', index === currentSlide);
+    });
+}
+
+// 자동 슬라이드
+let autoSlideInterval;
+function startAutoSlide() {
+    autoSlideInterval = setInterval(() => {
+        slideProjects('next');
+    }, 5000);
+}
+
+function stopAutoSlide() {
+    clearInterval(autoSlideInterval);
+}
+
+// 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    createIndicators();
+    startAutoSlide();
+    
+    // 호버 시 자동 슬라이드 멈춤
+    const sliderWrapper = document.querySelector('.cmk-ps-slider-wrapper');
+    if (sliderWrapper) {
+        sliderWrapper.addEventListener('mouseenter', stopAutoSlide);
+        sliderWrapper.addEventListener('mouseleave', startAutoSlide);
+    }
+    
+    // 반응형 처리
+    window.addEventListener('resize', function() {
+        const newItemsPerView = window.innerWidth > 768 ? 6 : 2;
+        if (newItemsPerView !== itemsPerView) {
+            itemsPerView = newItemsPerView;
+            currentSlide = 0;
+            createIndicators();
+            updateSlider();
+        }
+    });
+    
+    // 모바일 터치 스와이프
+    let touchStartX = 0;
+    let touchEndX = 0;
+    
+    const sliderContainer = document.querySelector('.cmk-ps-slider-container');
+    if (sliderContainer) {
+        sliderContainer.addEventListener('touchstart', function(e) {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+        
+        sliderContainer.addEventListener('touchend', function(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, { passive: true });
+    }
+    
+    function handleSwipe() {
+        if (touchEndX < touchStartX - 50) {
+            slideProjects('next');
+        }
+        if (touchEndX > touchStartX + 50) {
+            slideProjects('prev');
+        }
+    }
+});
+</script>
+
+<!-- Bootstrap Icons CDN (기존에 없다면 추가) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
 
 <?php
 include_once(G5_PATH.'/tail.php');

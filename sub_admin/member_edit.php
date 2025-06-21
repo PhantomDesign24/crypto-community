@@ -4,6 +4,7 @@
  * 위치: /sub_admin/
  * 기능: 하부조직 관리자 - 하위 회원 정보 수정
  * 작성일: 2025-01-23
+ * 수정일: 2025-01-23 (수정 시)
  */
 
 include_once('./_common.php');
@@ -45,38 +46,77 @@ if (!$mb['mb_id']) {
 // 정보 수정 처리
 // ===================================
 
-if ($_POST['act'] == 'update') {
-    $mb_name = trim($_POST['mb_name']);
-    $mb_nick = trim($_POST['mb_nick']);
-    $mb_email = trim($_POST['mb_email']);
-    $mb_hp = trim($_POST['mb_hp']);
-    $mb_zip = trim($_POST['mb_zip']);
-    $mb_addr1 = trim($_POST['mb_addr1']);
-    $mb_addr2 = trim($_POST['mb_addr2']);
-    $mb_addr3 = trim($_POST['mb_addr3']);
-    $mb_memo = trim($_POST['mb_memo']);
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && $_POST['act'] == 'update') {
+    // 입력값 정리 (그누보드5 방식)
+    $mb_name = isset($_POST['mb_name']) ? strip_tags(clean_xss_attributes($_POST['mb_name'])) : '';
+    $mb_nick = isset($_POST['mb_nick']) ? strip_tags(clean_xss_attributes($_POST['mb_nick'])) : '';
+    $mb_email = isset($_POST['mb_email']) ? strip_tags(clean_xss_attributes($_POST['mb_email'])) : '';
+    $mb_hp = isset($_POST['mb_hp']) ? strip_tags(clean_xss_attributes($_POST['mb_hp'])) : '';
+    $mb_zip = isset($_POST['mb_zip']) ? strip_tags(clean_xss_attributes($_POST['mb_zip'])) : '';
+    $mb_addr1 = isset($_POST['mb_addr1']) ? strip_tags(clean_xss_attributes($_POST['mb_addr1'])) : '';
+    $mb_addr2 = isset($_POST['mb_addr2']) ? strip_tags(clean_xss_attributes($_POST['mb_addr2'])) : '';
+    $mb_addr3 = isset($_POST['mb_addr3']) ? strip_tags(clean_xss_attributes($_POST['mb_addr3'])) : '';
+    $mb_memo = isset($_POST['mb_memo']) ? strip_tags(clean_xss_attributes($_POST['mb_memo'])) : '';
+    
+    // 필수값 체크
+    if (!$mb_name) {
+        alert('이름을 입력해주세요.');
+    }
+    
+    if (!$mb_email) {
+        alert('이메일을 입력해주세요.');
+    }
+    
+    // 이메일 형식 체크
+    if (!filter_var($mb_email, FILTER_VALIDATE_EMAIL)) {
+        alert('올바른 이메일 형식이 아닙니다.');
+    }
+    
+    // 닉네임 중복 체크 (본인 제외)
+    if ($mb_nick) {
+        $sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} 
+                WHERE mb_nick = '$mb_nick' AND mb_id != '$mb_id'";
+        $row = sql_fetch($sql);
+        if ($row['cnt'] > 0) {
+            alert('이미 사용 중인 닉네임입니다.');
+        }
+    }
+    
+    // 이메일 중복 체크 (본인 제외)
+    $sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} 
+            WHERE mb_email = '$mb_email' AND mb_id != '$mb_id'";
+    $row = sql_fetch($sql);
+    if ($row['cnt'] > 0) {
+        alert('이미 사용 중인 이메일입니다.');
+    }
     
     // 비밀번호 변경 (입력된 경우만)
     $sql_password = "";
-    if ($_POST['mb_password']) {
+    if ($_POST['mb_password'] && strlen($_POST['mb_password']) >= 4) {
         $sql_password = ", mb_password = '".get_encrypt_string($_POST['mb_password'])."' ";
+    } elseif ($_POST['mb_password'] && strlen($_POST['mb_password']) < 4) {
+        alert('비밀번호는 4자 이상 입력해주세요.');
     }
     
-    // 회원 정보 업데이트
+    // 회원 정보 업데이트 (우편번호 필드 수정)
     $sql = "UPDATE {$g5['member_table']} 
             SET mb_name = '{$mb_name}',
                 mb_nick = '{$mb_nick}',
                 mb_email = '{$mb_email}',
                 mb_hp = '{$mb_hp}',
-                mb_zip = '{$mb_zip}',
+                mb_zip1 = '',
+                mb_zip2 = '',
                 mb_addr1 = '{$mb_addr1}',
                 mb_addr2 = '{$mb_addr2}',
                 mb_addr3 = '{$mb_addr3}',
                 mb_memo = '{$mb_memo}'
                 {$sql_password}
             WHERE mb_id = '{$mb_id}'";
+    
+    // 쿼리 실행
     sql_query($sql);
     
+    // 성공 메시지
     alert('회원 정보가 수정되었습니다.', './member_edit.php?mb_id='.$mb_id);
 }
 
@@ -100,6 +140,9 @@ include_once(G5_PATH.'/head.sub.php');
     
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+    
+    <!-- Daum 우편번호 서비스 -->
+    <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
     
     <style>
     /* ===================================
@@ -158,16 +201,16 @@ include_once(G5_PATH.'/head.sub.php');
     }
     
     .cmk-me-avatar {
-        width: 60px;
-        height: 60px;
+        width: 48px;
+        height: 48px;
+        background: #3b82f6;
+        color: white;
         border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
-        color: white;
-        font-size: 24px;
+        font-size: 20px;
+        font-weight: 600;
     }
     
     .cmk-me-member-details h2 {
@@ -178,8 +221,8 @@ include_once(G5_PATH.'/head.sub.php');
     }
     
     .cmk-me-member-details p {
-        font-size: 14px;
         color: #6b7280;
+        font-size: 14px;
     }
     
     /* 폼 영역 */
@@ -192,14 +235,10 @@ include_once(G5_PATH.'/head.sub.php');
     
     .cmk-me-section {
         margin-bottom: 32px;
-        padding-bottom: 32px;
-        border-bottom: 1px solid #e5e7eb;
     }
     
     .cmk-me-section:last-child {
         margin-bottom: 0;
-        padding-bottom: 0;
-        border-bottom: none;
     }
     
     .cmk-me-section-title {
@@ -213,22 +252,27 @@ include_once(G5_PATH.'/head.sub.php');
     }
     
     .cmk-me-section-title i {
-        color: #6b7280;
+        color: #3b82f6;
     }
     
+    /* 입력 필드 */
     .cmk-me-form-group {
-        margin-bottom: 20px;
+        margin-bottom: 16px;
     }
     
     .cmk-me-label {
         display: block;
         font-size: 14px;
-        font-weight: 600;
+        font-weight: 500;
         color: #374151;
         margin-bottom: 8px;
     }
     
-    .cmk-me-input-group {
+    .cmk-me-label .required {
+        color: #ef4444;
+    }
+    
+    .cmk-me-input-wrap {
         position: relative;
     }
     
@@ -237,87 +281,98 @@ include_once(G5_PATH.'/head.sub.php');
         left: 16px;
         top: 50%;
         transform: translateY(-50%);
-        color: #9ca3af;
+        color: #3b82f6;
         font-size: 18px;
     }
     
-    .cmk-me-input,
-    .cmk-me-textarea {
+    .cmk-me-input {
         width: 100%;
-        padding: 12px 16px 12px 48px;
-        border: 2px solid #e5e7eb;
-        border-radius: 10px;
-        font-size: 15px;
-        transition: all 0.3s;
-        background: #f9fafb;
-        font-family: inherit;
+        padding: 12px 16px 12px 44px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.2s;
     }
     
-    .cmk-me-textarea {
-        padding-left: 16px;
-        min-height: 100px;
-        resize: vertical;
-    }
-    
-    .cmk-me-input:focus,
-    .cmk-me-textarea:focus {
+    .cmk-me-input:focus {
         outline: none;
         border-color: #3b82f6;
-        background: white;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
     
-    .cmk-me-help-text {
-        font-size: 13px;
-        color: #6b7280;
-        margin-top: 6px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
+    .cmk-me-input[readonly] {
+        background: #f9fafb;
+        cursor: not-allowed;
     }
     
+    /* 주소 검색 */
+    .cmk-me-btn-address {
+        margin-top: 8px;
+        padding: 8px 16px;
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .cmk-me-btn-address:hover {
+        background: #e5e7eb;
+    }
+    
+    /* 텍스트에어리어 */
+    .cmk-me-textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        min-height: 100px;
+        resize: vertical;
+        transition: all 0.2s;
+    }
+    
+    .cmk-me-textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    /* 정보 박스 */
     .cmk-me-info-box {
+        padding: 12px 16px;
         background: #eff6ff;
-        padding: 16px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        display: flex;
-        gap: 12px;
-        align-items: flex-start;
-    }
-    
-    .cmk-me-info-box i {
-        color: #3b82f6;
-        font-size: 20px;
-        flex-shrink: 0;
-    }
-    
-    .cmk-me-info-box p {
+        border: 1px solid #dbeafe;
+        border-radius: 8px;
         font-size: 14px;
         color: #1e40af;
-        line-height: 1.6;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
     }
     
     /* 버튼 영역 */
     .cmk-me-actions {
+        margin-top: 32px;
         display: flex;
         gap: 12px;
-        margin-top: 32px;
     }
     
     .cmk-me-btn {
         padding: 12px 24px;
         border: none;
-        border-radius: 10px;
-        font-size: 15px;
-        font-weight: 600;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
         cursor: pointer;
-        transition: all 0.3s;
+        transition: all 0.2s;
+        text-decoration: none;
         display: inline-flex;
         align-items: center;
-        justify-content: center;
         gap: 8px;
-        text-decoration: none;
     }
     
     .cmk-me-btn-primary {
@@ -327,7 +382,6 @@ include_once(G5_PATH.'/head.sub.php');
     
     .cmk-me-btn-primary:hover {
         background: #2563eb;
-        transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
     
@@ -357,6 +411,7 @@ include_once(G5_PATH.'/head.sub.php');
         
         .cmk-me-btn {
             width: 100%;
+            justify-content: center;
         }
     }
     </style>
@@ -370,10 +425,10 @@ include_once(G5_PATH.'/head.sub.php');
             <h1><i class="bi bi-person-gear"></i> 회원 정보 수정</h1>
             <div class="cmk-me-member-info">
                 <div class="cmk-me-avatar">
-                    <?php echo substr($mb['mb_name'], 0, 1); ?>
+                    <?php echo mb_substr($mb['mb_name'], 0, 1); ?>
                 </div>
                 <div class="cmk-me-member-details">
-                    <h2><?php echo $mb['mb_name']; ?> (<?php echo $mb['mb_id']; ?>)</h2>
+                    <h2><?php echo get_text($mb['mb_name']); ?> (<?php echo $mb['mb_id']; ?>)</h2>
                     <p>가입일: <?php echo date('Y년 m월 d일', strtotime($mb['mb_datetime'])); ?></p>
                 </div>
             </div>
@@ -392,42 +447,38 @@ include_once(G5_PATH.'/head.sub.php');
                 
                 <div class="cmk-me-info-box">
                     <i class="bi bi-info-circle"></i>
-                    <p>회원의 기본 정보를 수정할 수 있습니다. 아이디는 변경할 수 없으며, 비밀번호는 입력 시에만 변경됩니다.</p>
+                    <p>회원의 기본 정보를 수정할 수 있습니다. 아이디는 변경할 수 없습니다.</p>
                 </div>
                 
                 <div class="cmk-me-form-group">
                     <label class="cmk-me-label">아이디</label>
-                    <div class="cmk-me-input-group">
+                    <div class="cmk-me-input-wrap">
                         <i class="bi bi-person cmk-me-input-icon"></i>
-                        <input type="text" class="cmk-me-input" value="<?php echo $mb['mb_id']; ?>" readonly style="background: #e5e7eb;">
+                        <input type="text" class="cmk-me-input" value="<?php echo $mb['mb_id']; ?>" readonly>
                     </div>
                 </div>
                 
                 <div class="cmk-me-form-group">
-                    <label for="mb_password" class="cmk-me-label">새 비밀번호</label>
-                    <div class="cmk-me-input-group">
-                        <i class="bi bi-lock cmk-me-input-icon"></i>
-                        <input type="password" name="mb_password" id="mb_password" class="cmk-me-input" placeholder="변경할 경우에만 입력하세요">
-                    </div>
-                    <div class="cmk-me-help-text">
-                        <i class="bi bi-info-circle"></i>
-                        비밀번호를 변경하지 않으려면 비워두세요
-                    </div>
-                </div>
-                
-                <div class="cmk-me-form-group">
-                    <label for="mb_name" class="cmk-me-label">이름</label>
-                    <div class="cmk-me-input-group">
+                    <label class="cmk-me-label">이름 <span class="required">*</span></label>
+                    <div class="cmk-me-input-wrap">
                         <i class="bi bi-person-badge cmk-me-input-icon"></i>
-                        <input type="text" name="mb_name" id="mb_name" class="cmk-me-input" value="<?php echo $mb['mb_name']; ?>" required>
+                        <input type="text" name="mb_name" id="mb_name" class="cmk-me-input" value="<?php echo get_text($mb['mb_name']); ?>" required>
                     </div>
                 </div>
                 
                 <div class="cmk-me-form-group">
-                    <label for="mb_nick" class="cmk-me-label">닉네임</label>
-                    <div class="cmk-me-input-group">
-                        <i class="bi bi-chat-dots cmk-me-input-icon"></i>
-                        <input type="text" name="mb_nick" id="mb_nick" class="cmk-me-input" value="<?php echo $mb['mb_nick']; ?>">
+                    <label class="cmk-me-label">닉네임</label>
+                    <div class="cmk-me-input-wrap">
+                        <i class="bi bi-chat-square-text cmk-me-input-icon"></i>
+                        <input type="text" name="mb_nick" id="mb_nick" class="cmk-me-input" value="<?php echo get_text($mb['mb_nick']); ?>">
+                    </div>
+                </div>
+                
+                <div class="cmk-me-form-group">
+                    <label class="cmk-me-label">새 비밀번호</label>
+                    <div class="cmk-me-input-wrap">
+                        <i class="bi bi-lock cmk-me-input-icon"></i>
+                        <input type="password" name="mb_password" id="mb_password" class="cmk-me-input" placeholder="변경 시에만 입력 (4자 이상)">
                     </div>
                 </div>
             </div>
@@ -439,43 +490,60 @@ include_once(G5_PATH.'/head.sub.php');
                 </h3>
                 
                 <div class="cmk-me-form-group">
-                    <label for="mb_email" class="cmk-me-label">이메일</label>
-                    <div class="cmk-me-input-group">
+                    <label class="cmk-me-label">이메일 <span class="required">*</span></label>
+                    <div class="cmk-me-input-wrap">
                         <i class="bi bi-envelope cmk-me-input-icon"></i>
-                        <input type="email" name="mb_email" id="mb_email" class="cmk-me-input" value="<?php echo $mb['mb_email']; ?>" required>
+                        <input type="email" name="mb_email" id="mb_email" class="cmk-me-input" value="<?php echo get_text($mb['mb_email']); ?>" required>
                     </div>
                 </div>
                 
                 <div class="cmk-me-form-group">
-                    <label for="mb_hp" class="cmk-me-label">휴대폰</label>
-                    <div class="cmk-me-input-group">
+                    <label class="cmk-me-label">휴대폰</label>
+                    <div class="cmk-me-input-wrap">
                         <i class="bi bi-phone cmk-me-input-icon"></i>
-                        <input type="text" name="mb_hp" id="mb_hp" class="cmk-me-input" value="<?php echo $mb['mb_hp']; ?>">
+                        <input type="tel" name="mb_hp" id="mb_hp" class="cmk-me-input" value="<?php echo get_text($mb['mb_hp']); ?>" placeholder="010-0000-0000">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 주소 정보 -->
+            <div class="cmk-me-section">
+                <h3 class="cmk-me-section-title">
+                    <i class="bi bi-geo-alt"></i> 주소 정보
+                </h3>
+                
+                <div class="cmk-me-form-group">
+                    <label class="cmk-me-label">우편번호</label>
+                    <div class="cmk-me-input-wrap">
+                        <i class="bi bi-mailbox cmk-me-input-icon"></i>
+                        <input type="text" name="mb_zip" id="mb_zip" class="cmk-me-input" value="<?php echo $mb['mb_zip']; ?>" readonly>
+                    </div>
+                    <button type="button" onclick="execDaumPostcode()" class="cmk-me-btn-address">
+                        <i class="bi bi-search"></i> 우편번호 찾기
+                    </button>
+                </div>
+                
+                <div class="cmk-me-form-group">
+                    <label class="cmk-me-label">기본주소</label>
+                    <div class="cmk-me-input-wrap">
+                        <i class="bi bi-house cmk-me-input-icon"></i>
+                        <input type="text" name="mb_addr1" id="mb_addr1" class="cmk-me-input" value="<?php echo get_text($mb['mb_addr1']); ?>" readonly>
                     </div>
                 </div>
                 
                 <div class="cmk-me-form-group">
-                    <label for="mb_zip" class="cmk-me-label">주소</label>
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                        <div class="cmk-me-input-group" style="flex: 1;">
-                            <i class="bi bi-geo-alt cmk-me-input-icon"></i>
-                            <input type="text" name="mb_zip" id="mb_zip" class="cmk-me-input" value="<?php echo $mb['mb_zip']; ?>" placeholder="우편번호">
-                        </div>
-                        <button type="button" class="cmk-me-btn cmk-me-btn-secondary" onclick="win_zip('fmember', 'mb_zip', 'mb_addr1', 'mb_addr2', 'mb_addr3', 'mb_addr_jibeon');">
-                            <i class="bi bi-search"></i> 주소 검색
-                        </button>
+                    <label class="cmk-me-label">상세주소</label>
+                    <div class="cmk-me-input-wrap">
+                        <i class="bi bi-geo cmk-me-input-icon"></i>
+                        <input type="text" name="mb_addr2" id="mb_addr2" class="cmk-me-input" value="<?php echo get_text($mb['mb_addr2']); ?>" placeholder="상세주소를 입력하세요">
                     </div>
-                    <div class="cmk-me-input-group" style="margin-bottom: 8px;">
-                        <i class="bi bi-house cmk-me-input-icon"></i>
-                        <input type="text" name="mb_addr1" id="mb_addr1" class="cmk-me-input" value="<?php echo $mb['mb_addr1']; ?>" placeholder="기본주소">
-                    </div>
-                    <div class="cmk-me-input-group" style="margin-bottom: 8px;">
-                        <i class="bi bi-house-door cmk-me-input-icon"></i>
-                        <input type="text" name="mb_addr2" id="mb_addr2" class="cmk-me-input" value="<?php echo $mb['mb_addr2']; ?>" placeholder="상세주소">
-                    </div>
-                    <div class="cmk-me-input-group">
+                </div>
+                
+                <div class="cmk-me-form-group">
+                    <label class="cmk-me-label">참고항목</label>
+                    <div class="cmk-me-input-wrap">
                         <i class="bi bi-signpost cmk-me-input-icon"></i>
-                        <input type="text" name="mb_addr3" id="mb_addr3" class="cmk-me-input" value="<?php echo $mb['mb_addr3']; ?>" placeholder="참고항목" readonly>
+                        <input type="text" name="mb_addr3" id="mb_addr3" class="cmk-me-input" value="<?php echo get_text($mb['mb_addr3']); ?>" readonly>
                     </div>
                 </div>
             </div>
@@ -487,7 +555,7 @@ include_once(G5_PATH.'/head.sub.php');
                 </h3>
                 
                 <div class="cmk-me-form-group">
-                    <textarea name="mb_memo" id="mb_memo" class="cmk-me-textarea" placeholder="회원에 대한 메모를 입력하세요"><?php echo $mb['mb_memo']; ?></textarea>
+                    <textarea name="mb_memo" id="mb_memo" class="cmk-me-textarea" placeholder="회원에 대한 메모를 입력하세요"><?php echo get_text($mb['mb_memo']); ?></textarea>
                 </div>
             </div>
             
@@ -507,21 +575,25 @@ include_once(G5_PATH.'/head.sub.php');
 </div>
 
 <script>
+// 폼 제출 전 유효성 검사
 function fmember_submit(f) {
+    // 비밀번호 체크
     if (f.mb_password.value) {
-        if (f.mb_password.value.length < 3) {
-            alert("비밀번호는 3자 이상 입력하세요.");
+        if (f.mb_password.value.length < 4) {
+            alert("비밀번호는 4자 이상 입력하세요.");
             f.mb_password.focus();
             return false;
         }
     }
     
+    // 이름 체크
     if (!f.mb_name.value) {
         alert("이름을 입력하세요.");
         f.mb_name.focus();
         return false;
     }
     
+    // 이메일 체크
     if (!f.mb_email.value) {
         alert("이메일을 입력하세요.");
         f.mb_email.focus();
@@ -529,6 +601,47 @@ function fmember_submit(f) {
     }
     
     return confirm("회원 정보를 수정하시겠습니까?");
+}
+
+// 다음 우편번호 서비스
+function execDaumPostcode() {
+    new daum.Postcode({
+        oncomplete: function(data) {
+            var addr = '';
+            var extraAddr = '';
+
+            if (data.userSelectedType === 'R') {
+                addr = data.roadAddress;
+            } else {
+                addr = data.jibunAddress;
+            }
+
+            if(data.userSelectedType === 'R'){
+                if(data.bname !== '' && /[동|로|가]$/g.test(data.bname)){
+                    extraAddr += data.bname;
+                }
+                if(data.buildingName !== '' && data.apartment === 'Y'){
+                    extraAddr += (extraAddr !== '' ? ', ' + data.buildingName : data.buildingName);
+                }
+                if(extraAddr !== ''){
+                    extraAddr = ' (' + extraAddr + ')';
+                }
+                document.getElementById("mb_addr3").value = extraAddr;
+            } else {
+                document.getElementById("mb_addr3").value = '';
+            }
+
+            // 구버전 우편번호 처리 (3-3 형식)
+            var zip = data.zonecode;
+            if(zip.length == 5) {
+                document.getElementById('mb_zip1').value = zip.substr(0, 3);
+                document.getElementById('mb_zip2').value = zip.substr(3, 2);
+            }
+            
+            document.getElementById("mb_addr1").value = addr;
+            document.getElementById("mb_addr2").focus();
+        }
+    }).open();
 }
 </script>
 
