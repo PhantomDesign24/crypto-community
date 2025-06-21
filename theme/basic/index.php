@@ -864,92 +864,6 @@ include_once(G5_PATH.'/head.php');
         </div>
     </div>
 </section>
-<!-- =================================== -->
-<!-- 크립토 마케팅 소개 섹션 -->
-<!-- =================================== -->
-<section class="section marketing-intro">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-6 mb-5 mb-lg-0">
-                <div class="marketing-content">
-                    <h2 class="display-5 fw-bold mb-4">
-                        <span class="text-gradient">크립토 마케팅의</span><br>
-                        새로운 패러다임
-                    </h2>
-                    <p class="lead mb-4">
-                        10년 이상의 블록체인 산업 경험과 국내 최대 규모의 커뮤니티를 바탕으로
-                        귀사의 프로젝트 성공을 위한 최적의 마케팅 솔루션을 제공합니다.
-                    </p>
-                    <div class="feature-list mb-4">
-                        <div class="feature-item">
-                            <i class="bi bi-check-circle-fill text-success"></i>
-                            <div>
-                                <h5>검증된 전문성</h5>
-                                <p>100개 이상의 프로젝트 성공 경험과 업계 최고 수준의 전문가 팀</p>
-                            </div>
-                        </div>
-                        <div class="feature-item">
-                            <i class="bi bi-check-circle-fill text-success"></i>
-                            <div>
-                                <h5>종합 마케팅 솔루션</h5>
-                                <p>상장 지원부터 커뮤니티 관리까지 원스톱 토탈 서비스</p>
-                            </div>
-                        </div>
-                        <div class="feature-item">
-                            <i class="bi bi-check-circle-fill text-success"></i>
-                            <div>
-                                <h5>투명한 성과 보고</h5>
-                                <p>실시간 대시보드를 통한 캠페인 성과 추적 및 ROI 분석</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-flex gap-3">
-                        <a href="<?php echo G5_URL ?>/consult.php" class="btn-gradient">
-                            무료 컨설팅 신청 <i class="bi bi-arrow-right"></i>
-                        </a>
-                        <a href="#" class="btn-outline">
-                            포트폴리오 보기
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="marketing-stats">
-                    <div class="stats-grid">
-                        <div class="stat-box">
-                            <div class="stat-icon-wrap">
-                                <i class="bi bi-building"></i>
-                            </div>
-                            <h3>127+</h3>
-                            <p>성공 프로젝트</p>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-icon-wrap">
-                                <i class="bi bi-people-fill"></i>
-                            </div>
-                            <h3>50K+</h3>
-                            <p>활성 커뮤니티</p>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-icon-wrap">
-                                <i class="bi bi-graph-up"></i>
-                            </div>
-                            <h3>98%</h3>
-                            <p>고객 만족도</p>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-icon-wrap">
-                                <i class="bi bi-award"></i>
-                            </div>
-                            <h3>15+</h3>
-                            <p>수상 경력</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
 
 
 
@@ -1027,22 +941,6 @@ include_once(G5_PATH.'/head.php');
     </div>
 </section>
 
-<!-- =================================== -->
-<!-- 실시간 코인 시세 섹션 -->
-<!-- =================================== -->
-<section class="section" style="background: #f8fafc;">
-    <div class="container">
-        <div class="section-header">
-            <h2 class="section-title">실시간 코인 시세</h2>
-            <p class="section-subtitle">국내외 주요 거래소의 실시간 가격 정보를 한눈에</p>
-        </div>
-        
-        <!-- 코인 시세 위젯 -->
-        <div class="crypto-widget-wrapper">
-            <?php include_once(G5_PATH.'/widget/crypto_widget.php'); ?>
-        </div>
-    </div>
-</section>
 
 <!-- =================================== -->
 <!-- 코인 지급 현황 전광판 -->
@@ -1150,24 +1048,89 @@ include_once(G5_PATH.'/head.php');
     </div>
 </section>
 
+
 <!-- =================================== -->
-<!-- CTA 섹션 -->
+<!-- 크립토 마케팅 소개 섹션 -->
 <!-- =================================== -->
-<section class="section">
+<section class="section marketing-intro">
     <div class="container">
-        <div class="text-center">
-            <h2 class="section-title mb-4">지금 시작하세요</h2>
-            <p class="lead text-muted mb-5">
-                매일 업데이트되는 최신 코인 정보와<br>
-                다양한 이벤트 혜택을 놓치지 마세요
-            </p>
-            <div class="d-flex gap-3 justify-content-center">
-                <a href="<?php echo G5_BBS_URL ?>/register.php" class="btn-gradient btn-lg">
-                    무료 회원가입 <i class="bi bi-arrow-right"></i>
-                </a>
-                <a href="<?php echo G5_URL ?>/consult.php" class="btn-outline btn-lg">
-                    상담 신청
-                </a>
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-5 mb-lg-0">
+                <div class="marketing-content">
+                    <h2 class="display-5 fw-bold mb-4">
+                        <span class="text-gradient">크립토 마케팅의</span><br>
+                        새로운 패러다임
+                    </h2>
+                    <p class="lead mb-4">
+                        10년 이상의 블록체인 산업 경험과 국내 최대 규모의 커뮤니티를 바탕으로
+                        귀사의 프로젝트 성공을 위한 최적의 마케팅 솔루션을 제공합니다.
+                    </p>
+                    <div class="feature-list mb-4">
+                        <div class="feature-item">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <div>
+                                <h5>검증된 전문성</h5>
+                                <p>100개 이상의 프로젝트 성공 경험과 업계 최고 수준의 전문가 팀</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <div>
+                                <h5>종합 마케팅 솔루션</h5>
+                                <p>상장 지원부터 커뮤니티 관리까지 원스톱 토탈 서비스</p>
+                            </div>
+                        </div>
+                        <div class="feature-item">
+                            <i class="bi bi-check-circle-fill text-success"></i>
+                            <div>
+                                <h5>투명한 성과 보고</h5>
+                                <p>실시간 대시보드를 통한 캠페인 성과 추적 및 ROI 분석</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <a href="<?php echo G5_URL ?>/consult.php" class="btn-gradient">
+                            무료 컨설팅 신청 <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a href="#" class="btn-outline">
+                            포트폴리오 보기
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="marketing-stats">
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-icon-wrap">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <h3>127+</h3>
+                            <p>성공 프로젝트</p>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-icon-wrap">
+                                <i class="bi bi-people-fill"></i>
+                            </div>
+                            <h3>50K+</h3>
+                            <p>활성 커뮤니티</p>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-icon-wrap">
+                                <i class="bi bi-graph-up"></i>
+                            </div>
+                            <h3>98%</h3>
+                            <p>고객 만족도</p>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-icon-wrap">
+                                <i class="bi bi-award"></i>
+                            </div>
+                            <h3>15+</h3>
+                            <p>수상 경력</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
