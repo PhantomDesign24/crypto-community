@@ -85,23 +85,45 @@ include_once('./header.php');
 // 통계 데이터 조회 (이미 헤더에서 조회함)
 // ===================================
 
-/* 이벤트 신청 현황 - 대기중 */
+// ===================================
+// 이벤트 신청 현황 부분 수정
+// ===================================
+
+// index.php의 이벤트 통계 부분을 다음과 같이 수정하세요:
+
+// ===================================
+// 이벤트 신청 현황 - 대기중
+// ===================================
 $sql = "SELECT COUNT(*) as cnt 
         FROM g5_event_apply a 
         LEFT JOIN {$g5['member_table']} m ON a.mb_id = m.mb_id 
         WHERE m.mb_recommend = '{$member['mb_id']}' 
-        AND a.ea_status = 0";
+        AND a.ea_status = 'applied'";
 $row = sql_fetch($sql);
 $event_wait = $row['cnt'];
 
-/* 이벤트 신청 현황 - 완료 */
+// ===================================
+// 이벤트 신청 현황 - 완료
+// ===================================
 $sql = "SELECT COUNT(*) as cnt 
         FROM g5_event_apply a 
         LEFT JOIN {$g5['member_table']} m ON a.mb_id = m.mb_id 
         WHERE m.mb_recommend = '{$member['mb_id']}' 
-        AND a.ea_status = 1";
+        AND a.ea_status = 'paid'";
 $row = sql_fetch($sql);
 $event_complete = $row['cnt'];
+
+// ===================================
+// 최근 이벤트 신청 목록 (중요: 여기가 수정되어야 함)
+// ===================================
+$sql = "SELECT a.*, m.mb_id, m.mb_name, e.ev_subject, e.ev_coin_symbol, e.ev_coin_amount 
+        FROM g5_event_apply a 
+        LEFT JOIN {$g5['member_table']} m ON a.mb_id = m.mb_id 
+        LEFT JOIN g5_event e ON a.ev_id = e.ev_id 
+        WHERE m.mb_recommend = '{$member['mb_id']}' 
+        ORDER BY a.ea_datetime DESC 
+        LIMIT 5";
+$recent_events = sql_query($sql);
 
 // ===================================
 // 최근 가입 회원 목록
@@ -119,15 +141,6 @@ $recent_members = sql_query($sql);
 // 최근 이벤트 신청 목록
 // ===================================
 
-/* 최근 이벤트 신청 5건 */
-$sql = "SELECT a.*, m.mb_id, m.mb_name, w.wr_subject 
-        FROM g5_event_apply a 
-        LEFT JOIN {$g5['member_table']} m ON a.mb_id = m.mb_id 
-        LEFT JOIN {$g5['write_prefix']}event w ON a.wr_id = w.wr_id 
-        WHERE m.mb_recommend = '{$member['mb_id']}' 
-        ORDER BY a.ea_datetime DESC 
-        LIMIT 5";
-$recent_events = sql_query($sql);
 ?>
 
 <style>
@@ -611,14 +624,14 @@ $recent_events = sql_query($sql);
     <?php } ?>
 </div>
 
-<!-- 최근 이벤트 신청 -->
+<!-- 최근 이벤트 신청 섹션을 다음과 같이 수정 -->
 <div class="dashboard-section">
     <div class="section-header">
         <h2 class="section-title">
-            <i class="bi bi-calendar-event"></i>
+            <i class="bi bi-gift"></i>
             최근 이벤트 신청
         </h2>
-        <a href="./event_apply_list.php" class="view-more">
+        <a href="./event_list.php" class="view-more">
             전체 보기 <i class="bi bi-arrow-right-short"></i>
         </a>
     </div>
@@ -629,6 +642,7 @@ $recent_events = sql_query($sql);
             <tr>
                 <th>신청자</th>
                 <th>이벤트명</th>
+                <th>코인</th>
                 <th>신청일</th>
                 <th>상태</th>
             </tr>
@@ -647,10 +661,15 @@ $recent_events = sql_query($sql);
                         </div>
                     </div>
                 </td>
-                <td><?php echo get_text($row['wr_subject']); ?></td>
+                <td><?php echo get_text($row['ev_subject']); ?></td>
+                <td>
+                    <span style="background: #EFF6FF; color: #3B82F6; padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 600;">
+                        <?php echo $row['ev_coin_symbol']; ?> <?php echo $row['ev_coin_amount']; ?>
+                    </span>
+                </td>
                 <td><?php echo date('Y-m-d H:i', strtotime($row['ea_datetime'])); ?></td>
                 <td>
-                    <?php if ($row['ea_status'] == 0) { ?>
+                    <?php if ($row['ea_status'] == 'applied') { ?>
                         <span class="status-badge wait">대기중</span>
                     <?php } else { ?>
                         <span class="status-badge complete">지급완료</span>

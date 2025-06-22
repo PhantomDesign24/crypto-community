@@ -2,7 +2,7 @@
 /*
  * 파일명: header.php
  * 위치: /sub_admin/
- * 기능: 하부조직 관리 페이지 공통 헤더
+ * 기능: 조직 관리 페이지 공통 헤더
  * 작성일: 2025-01-23
  */
 
@@ -49,7 +49,7 @@ include_once(G5_PATH.'/head.sub.php');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $g5['title']; ?> - 하부조직 관리</title>
+    <title><?php echo $g5['title']; ?> - 조직 관리</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -61,7 +61,7 @@ include_once(G5_PATH.'/head.sub.php');
     
     <style>
     /* ===================================
-     * 하부조직 관리 공통 스타일
+     * 조직 관리 공통 스타일
      * =================================== */
     
     /* 레이아웃 */
@@ -389,7 +389,7 @@ include_once(G5_PATH.'/head.sub.php');
     <aside class="sa-sidebar" id="saSidebar">
         <div class="sa-sidebar-header">
             <h1 class="sa-sidebar-title">
-                <i class="bi bi-diagram-3"></i> 하부조직 관리
+                <i class="bi bi-diagram-3"></i> 조직 관리
             </h1>
         </div>
         
@@ -426,11 +426,8 @@ include_once(G5_PATH.'/head.sub.php');
             <a href="./member_list.php" class="sa-menu-item <?php echo ($current_page == 'member_list.php') ? 'active' : ''; ?>">
                 <i class="bi bi-people"></i> 회원 관리
             </a>
-            <a href="./point_list.php" class="sa-menu-item <?php echo ($current_page == 'point_list.php') ? 'active' : ''; ?>">
-                <i class="bi bi-coin"></i> 포인트 관리
-            </a>
-            <a href="./stats.php" class="sa-menu-item <?php echo ($current_page == 'stats.php') ? 'active' : ''; ?>">
-                <i class="bi bi-graph-up"></i> 통계 분석
+            <a href="./event_list.php" class="sa-menu-item <?php echo ($current_page == 'event_list.php') ? 'active' : ''; ?>">
+                <i class="bi bi-gift"></i> 이벤트 관리
             </a>
             <a href="./notice.php" class="sa-menu-item <?php echo ($current_page == 'notice.php') ? 'active' : ''; ?>">
                 <i class="bi bi-megaphone"></i> 공지사항
@@ -461,7 +458,7 @@ include_once(G5_PATH.'/head.sub.php');
             <div class="sa-breadcrumb">
                 <a href="<?php echo G5_URL; ?>">홈</a>
                 <i class="bi bi-chevron-right"></i>
-                <a href="./index.php">하부조직 관리</a>
+                <a href="./index.php">조직 관리</a>
                 <i class="bi bi-chevron-right"></i>
                 <span><?php echo $g5['title']; ?></span>
             </div>

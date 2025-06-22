@@ -1,578 +1,684 @@
 <?php
 /*
  * 파일명: event.php
- * 위치: /
- * 기능: 이벤트 페이지
- * 작성일: 2025-01-23
+ * 위치: /event.php
+ * 기능: 이벤트 메인 페이지 (사용자/관리자 통합)
+ * 작성일: 2025-01-11
  */
 
 include_once('./_common.php');
 
-// ===================================
-// 초기 설정
-// ===================================
+// 관리자 모드 체크
+$is_admin_mode = false;
+$admin_action = isset($_GET['admin']) ? $_GET['admin'] : '';
 
-/* 페이지 제목 */
-$g5['title'] = '이벤트';
+if($is_admin && $admin_action) {
+    $is_admin_mode = true;
+    
+    // 관리자 액션 처리
+    switch($admin_action) {
+        case 'write':
+            include_once('./event_write.php');
+            return;
+            
+        case 'apply_list':
+            include_once('./event_apply_list.php');
+            return;
+            
+        case 'payment_complete':
+            $ea_id = isset($_GET['ea_id']) ? (int)$_GET['ea_id'] : 0;
+            if($ea_id) {
+                // 지급 완료 처리
+                sql_query("UPDATE g5_event_apply SET 
+                          ea_status = 'paid', 
+                          ea_pay_datetime = NOW(),
+                          ea_pay_mb_id = '{$member['mb_id']}'
+                          WHERE ea_id = '{$ea_id}'");
+                
+                // 게시글 제목 변경
+                $apply = sql_fetch("SELECT * FROM g5_event_apply WHERE ea_id = '{$ea_id}'");
+                if($apply['wr_id']) {
+                    $board_table = 'event_apply';
+                    sql_query("UPDATE {$g5['write_prefix']}{$board_table} SET 
+                              wr_subject = REPLACE(wr_subject, '[신청완료]', '[지급완료]'),
+                              wr_3 = 'paid'
+                              WHERE wr_id = '{$apply['wr_id']}'");
+                }
+                
+                // 전광판 업데이트를 위한 정보 가져오기
+                $event = sql_fetch("SELECT * FROM g5_event WHERE ev_id = '{$apply['ev_id']}'");
+                $member_info = get_member($apply['mb_id']);
+                
+                // 전광판에 추가 (전광판 테이블이 있다면)
+                if(sql_table_exists('g5_ticker')) {
+                    $ticker_content = $member_info['mb_nick']."님이 ".$event['ev_coin_symbol']." ".$event['ev_coin_amount']." 에어드랍을 받았습니다!";
+                    sql_query("INSERT INTO g5_ticker SET 
+                              tk_content = '{$ticker_content}',
+                              tk_type = 'event',
+                              tk_datetime = NOW()");
+                }
+                
+                alert('지급 완료 처리되었습니다.', './event.php?admin=apply_list&ev_id='.$apply['ev_id']);
+            }
+            break;
+    }
+}
 
-include_once('./_head.php');
+// 이벤트 ID가 있으면 상세보기
+$ev_id = isset($_GET['ev_id']) ? (int)$_GET['ev_id'] : 0;
+if($ev_id > 0 && !$is_admin_mode) {
+    include_once('./event_view.php');
+    return;
+}
+
+$g5['title'] = '에어드랍 이벤트';
+include_once(G5_PATH.'/head.php');
+
+// 상태별 탭
+$status = isset($_GET['status']) ? $_GET['status'] : 'ongoing';
+if(!in_array($status, ['ongoing', 'scheduled', 'ended'])) {
+    $status = 'ongoing';
+}
+
+// 페이징
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$rows = 12; // 한 페이지에 보여줄 이벤트 수
+$from_record = ($page - 1) * $rows;
+
+// 전체 이벤트 수
+$sql = "SELECT COUNT(*) as cnt FROM g5_event WHERE ev_status = '{$status}'";
+$row = sql_fetch($sql);
+$total_count = $row['cnt'];
+$total_page = ceil($total_count / $rows);
+
+// 이벤트 목록
+$sql = "SELECT * FROM g5_event 
+        WHERE ev_status = '{$status}'
+        ORDER BY ev_recommend DESC, ev_id DESC
+        LIMIT {$from_record}, {$rows}";
+$result = sql_query($sql);
 ?>
 
 <!-- ===================================
-     이벤트 페이지 스타일
+     이벤트 페이지 헤더
      =================================== -->
+<div class="event-page-header">
+    <div class="container">
+        <h1 class="page-title">
+            <i class="bi bi-gift-fill"></i>
+            에어드랍 이벤트
+        </h1>
+        <p class="page-desc">다양한 코인 에어드랍 이벤트에 참여하고 무료 코인을 받아가세요!</p>
+        
+        <?php if($is_admin) { ?>
+        <div class="admin-buttons mt-3">
+            <a href="<?php echo G5_URL; ?>/event.php?admin=write" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> 새 이벤트 작성
+            </a>
+            <a href="<?php echo G5_URL; ?>/event.php?admin=apply_list" class="btn btn-info">
+                <i class="bi bi-list-check"></i> 신청 관리
+            </a>
+        </div>
+        <?php } ?>
+    </div>
+</div>
+
+<!-- ===================================
+     이벤트 페이지 콘텐츠
+     =================================== -->
+<div class="event-page-content">
+    <div class="container">
+        <!-- 상태 탭 -->
+        <ul class="nav nav-tabs event-tabs mb-5">
+            <li class="nav-item">
+                <a class="nav-link <?php echo $status == 'ongoing' ? 'active' : ''; ?>" 
+                   href="<?php echo G5_URL; ?>/event.php?status=ongoing">
+                    <i class="bi bi-play-circle"></i> 진행중
+                    <span class="badge bg-danger ms-1"><?php echo get_event_count('ongoing'); ?></span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $status == 'scheduled' ? 'active' : ''; ?>" 
+                   href="<?php echo G5_URL; ?>/event.php?status=scheduled">
+                    <i class="bi bi-clock"></i> 진행예정
+                    <span class="badge bg-info ms-1"><?php echo get_event_count('scheduled'); ?></span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $status == 'ended' ? 'active' : ''; ?>" 
+                   href="<?php echo G5_URL; ?>/event.php?status=ended">
+                    <i class="bi bi-check-circle"></i> 진행종료
+                    <span class="badge bg-secondary ms-1"><?php echo get_event_count('ended'); ?></span>
+                </a>
+            </li>
+        </ul>
+        
+        <!-- 이벤트 그리드 -->
+        <div class="event-grid mb-5">
+            <?php 
+            if($total_count > 0) {
+                while($event = sql_fetch_array($result)) {
+                    $remaining_days = floor((strtotime($event['ev_end_date']) - time()) / 86400);
+            ?>
+            <div class="event-card" onclick="location.href='<?php echo G5_URL; ?>/event.php?ev_id=<?php echo $event['ev_id']; ?>'">
+                <div class="event-card-inner">
+                    <?php if($is_admin) { ?>
+                    <!-- 관리자 메뉴 -->
+                    <div class="admin-menu">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light" onclick="event.stopPropagation();" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="<?php echo G5_URL; ?>/event.php?admin=write&ev_id=<?php echo $event['ev_id']; ?>">
+                                    <i class="bi bi-pencil"></i> 수정
+                                </a></li>
+                                <li><a class="dropdown-item" href="<?php echo G5_URL; ?>/event.php?admin=apply_list&ev_id=<?php echo $event['ev_id']; ?>">
+                                    <i class="bi bi-people"></i> 신청자 관리
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteEvent(<?php echo $event['ev_id']; ?>); return false;">
+                                    <i class="bi bi-trash"></i> 삭제
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <?php } ?>
+                    
+                    <!-- 추천 배지 -->
+                    <?php if($event['ev_recommend']) { ?>
+                    <div class="recommend-badge">
+                        <i class="bi bi-star-fill"></i> 추천
+                    </div>
+                    <?php } ?>
+                    
+                    <!-- 이벤트 이미지 -->
+                    <div class="event-image">
+                        <?php if($event['ev_image']) { ?>
+                            <img src="<?php echo G5_DATA_URL; ?>/event/<?php echo $event['ev_image']; ?>" 
+                                 alt="<?php echo $event['ev_subject']; ?>">
+                        <?php } else { ?>
+                            <div class="event-no-image">
+                                <i class="bi bi-gift"></i>
+                                <p><?php echo $event['ev_coin_symbol']; ?></p>
+                            </div>
+                        <?php } ?>
+                    </div>
+                    
+                    <!-- 이벤트 정보 -->
+                    <div class="event-info">
+                        <div class="event-coin-badge">
+                            <span class="coin-symbol"><?php echo $event['ev_coin_symbol']; ?></span>
+                            <span class="coin-amount"><?php echo $event['ev_coin_amount']; ?></span>
+                        </div>
+                        
+                        <h3 class="event-title"><?php echo $event['ev_subject']; ?></h3>
+                        <p class="event-summary"><?php echo $event['ev_summary']; ?></p>
+                        
+                        <div class="event-meta">
+                            <div class="meta-item">
+                                <i class="bi bi-calendar-range"></i>
+                                <?php echo date('m/d', strtotime($event['ev_start_date'])); ?> ~ 
+                                <?php echo date('m/d', strtotime($event['ev_end_date'])); ?>
+                            </div>
+                            <div class="meta-item">
+                                <i class="bi bi-people"></i>
+                                <?php echo number_format($event['ev_apply_count']); ?>명 참여
+                            </div>
+                        </div>
+                        
+                        <?php if($status == 'ongoing') { ?>
+                        <div class="event-action">
+                            <button class="btn btn-primary btn-sm w-100">
+                                <i class="bi bi-cursor-fill"></i> 참여하기
+                            </button>
+                        </div>
+                        <?php } else if($status == 'scheduled') { ?>
+                        <div class="event-action">
+                            <button class="btn btn-info btn-sm w-100" disabled>
+                                <i class="bi bi-clock"></i> D-<?php echo abs($remaining_days); ?>
+                            </button>
+                        </div>
+                        <?php } else { ?>
+                        <div class="event-action">
+                            <button class="btn btn-secondary btn-sm w-100" disabled>
+                                <i class="bi bi-x-circle"></i> 종료됨
+                            </button>
+                        </div>
+                        <?php } ?>
+                    </div>
+                </div>
+            </div>
+            <?php 
+                }
+            } else {
+            ?>
+            <div class="no-events">
+                <i class="bi bi-inbox"></i>
+                <p>현재 <?php echo get_status_text($status); ?> 이벤트가 없습니다.</p>
+            </div>
+            <?php } ?>
+        </div>
+        
+        <!-- 페이징 -->
+        <?php if($total_page > 1) { ?>
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                <?php
+                $start_page = max(1, $page - 5);
+                $end_page = min($total_page, $page + 5);
+                
+                if($page > 1) {
+                ?>
+                <li class="page-item">
+                    <a class="page-link" href="?status=<?php echo $status; ?>&page=<?php echo $page-1; ?>">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                <?php } ?>
+                
+                <?php for($i = $start_page; $i <= $end_page; $i++) { ?>
+                <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
+                    <a class="page-link" href="?status=<?php echo $status; ?>&page=<?php echo $i; ?>">
+                        <?php echo $i; ?>
+                    </a>
+                </li>
+                <?php } ?>
+                
+                <?php if($page < $total_page) { ?>
+                <li class="page-item">
+                    <a class="page-link" href="?status=<?php echo $status; ?>&page=<?php echo $page+1; ?>">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                <?php } ?>
+            </ul>
+        </nav>
+        <?php } ?>
+        
+        <!-- 이벤트 리스트 (표 형태) -->
+        <div class="event-list-section mt-5">
+            <h3 class="section-title mb-4">
+                <i class="bi bi-list-ul"></i> 전체 이벤트 목록
+            </h3>
+            
+            <div class="table-responsive">
+                <table class="table table-hover event-list-table">
+                    <thead>
+                        <tr>
+                            <th>상태</th>
+                            <th>코인</th>
+                            <th>이벤트명</th>
+                            <th>지급수량</th>
+                            <th>기간</th>
+                            <th>참여자</th>
+                            <th>참여</th>
+                            <?php if($is_admin) { ?>
+                            <th>관리</th>
+                            <?php } ?>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $list_sql = "SELECT * FROM g5_event ORDER BY ev_status = 'ongoing' DESC, ev_id DESC LIMIT 20";
+                        $list_result = sql_query($list_sql);
+                        while($list = sql_fetch_array($list_result)) {
+                        ?>
+                        <tr onclick="location.href='<?php echo G5_URL; ?>/event.php?ev_id=<?php echo $list['ev_id']; ?>'" style="cursor: pointer;">
+                            <td>
+                                <?php if($list['ev_status'] == 'ongoing') { ?>
+                                    <span class="badge bg-success">진행중</span>
+                                <?php } else if($list['ev_status'] == 'scheduled') { ?>
+                                    <span class="badge bg-info">예정</span>
+                                <?php } else { ?>
+                                    <span class="badge bg-secondary">종료</span>
+                                <?php } ?>
+                            </td>
+                            <td>
+                                <strong><?php echo $list['ev_coin_symbol']; ?></strong>
+                            </td>
+                            <td><?php echo $list['ev_subject']; ?></td>
+                            <td class="text-success"><?php echo $list['ev_coin_amount']; ?></td>
+                            <td>
+                                <?php echo date('Y.m.d', strtotime($list['ev_start_date'])); ?> ~ 
+                                <?php echo date('Y.m.d', strtotime($list['ev_end_date'])); ?>
+                            </td>
+                            <td><?php echo number_format($list['ev_apply_count']); ?>명</td>
+                            <td onclick="event.stopPropagation();">
+                                <?php if($list['ev_status'] == 'ongoing') { ?>
+                                    <button class="btn btn-primary btn-sm">참여</button>
+                                <?php } else { ?>
+                                    <button class="btn btn-secondary btn-sm" disabled>마감</button>
+                                <?php } ?>
+                            </td>
+                            <?php if($is_admin) { ?>
+                            <td onclick="event.stopPropagation();">
+                                <a href="<?php echo G5_URL; ?>/event.php?admin=write&ev_id=<?php echo $list['ev_id']; ?>" class="btn btn-sm btn-warning">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="<?php echo G5_URL; ?>/event.php?admin=apply_list&ev_id=<?php echo $list['ev_id']; ?>" class="btn btn-sm btn-info">
+                                    <i class="bi bi-people"></i>
+                                </a>
+                            </td>
+                            <?php } ?>
+                        </tr>
+                        <?php } ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
-/* 컨테이너 */
-.event-container {
-    max-width: 1200px;
-    margin: 40px auto;
-    padding: 0 20px;
-}
-
 /* 페이지 헤더 */
-.event-header {
-    text-align: center;
-    margin-bottom: 60px;
+.event-page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 60px 0;
+    margin-bottom: 40px;
 }
 
-.event-header h1 {
+.page-title {
     font-size: 36px;
     font-weight: 700;
-    color: #1f2937;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
 }
 
-.event-header p {
+.page-desc {
     font-size: 18px;
-    color: #6b7280;
+    opacity: 0.9;
+}
+
+/* 관리자 버튼 */
+.admin-buttons {
+    display: flex;
+    gap: 10px;
 }
 
 /* 이벤트 탭 */
-.event-tabs {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin-bottom: 40px;
-    flex-wrap: wrap;
-}
-
-.tab-btn {
-    padding: 12px 24px;
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    border-radius: 25px;
-    color: #4b5563;
+.event-tabs .nav-link {
+    color: #6b7280;
     font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s;
+    padding: 12px 24px;
+    border: none;
+    border-bottom: 3px solid transparent;
 }
 
-.tab-btn:hover {
-    background: #e5e7eb;
+.event-tabs .nav-link:hover {
+    color: #3b82f6;
 }
 
-.tab-btn.active {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
+.event-tabs .nav-link.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+    background: none;
 }
 
 /* 이벤트 그리드 */
 .event-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 30px;
-    margin-bottom: 60px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
 }
 
 /* 이벤트 카드 */
 .event-card {
-    background: white;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s;
+    cursor: pointer;
+    position: relative;
 }
 
-.event-card:hover {
+.event-card-inner {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.event-card:hover .event-card-inner {
     transform: translateY(-5px);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* 관리자 메뉴 */
+.admin-menu {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+/* 추천 배지 */
+.recommend-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: #fbbf24;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 10;
 }
 
 /* 이벤트 이미지 */
 .event-image {
-    position: relative;
-    height: 200px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    width: 100%;
+    height: 180px;
+    background: #f3f4f6;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
 }
 
-.event-badge {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    padding: 6px 12px;
-    background: #ef4444;
-    color: white;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
+.event-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-.event-badge.ongoing {
-    background: #10b981;
+.event-no-image {
+    text-align: center;
+    color: #9ca3af;
 }
 
-.event-badge.upcoming {
-    background: #f59e0b;
+.event-no-image i {
+    font-size: 48px;
+    margin-bottom: 8px;
 }
 
-/* 이벤트 내용 */
-.event-content {
-    padding: 24px;
-}
-
-.event-category {
-    display: inline-block;
-    padding: 4px 12px;
-    background: #eff6ff;
-    color: #3b82f6;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-    margin-bottom: 12px;
-}
-
-.event-title {
+.event-no-image p {
     font-size: 20px;
     font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 12px;
-    line-height: 1.4;
+    margin: 0;
 }
 
-.event-desc {
-    color: #6b7280;
-    font-size: 14px;
-    line-height: 1.6;
-    margin-bottom: 16px;
+/* 이벤트 정보 */
+.event-info {
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
-.event-period {
+.event-coin-badge {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #4b5563;
-    font-size: 14px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 
-.event-period i {
-    color: #3b82f6;
-}
-
-/* 이벤트 참여 버튼 */
-.event-action {
-    display: flex;
-    gap: 12px;
-}
-
-.btn-participate {
-    flex: 1;
-    padding: 12px;
-    background: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.btn-participate:hover {
-    background: #2563eb;
-}
-
-.btn-detail {
-    padding: 12px 20px;
-    background: #f3f4f6;
-    color: #4b5563;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.btn-detail:hover {
-    background: #e5e7eb;
-}
-
-/* 이벤트 상세 모달 */
-.event-modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 9999;
-    align-items: center;
-    justify-content: center;
-}
-
-.event-modal.show {
-    display: flex;
-}
-
-.modal-container {
-    background: white;
+.coin-symbol {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 4px 12px;
     border-radius: 16px;
-    max-width: 600px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    font-size: 13px;
+    font-weight: 600;
 }
 
-.modal-header {
-    padding: 24px;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.coin-amount {
+    color: #16a34a;
+    font-weight: 600;
+    font-size: 14px;
 }
 
-.modal-body {
-    padding: 24px;
+.event-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 24px;
+.event-summary {
+    font-size: 14px;
     color: #6b7280;
-    cursor: pointer;
+    margin-bottom: 16px;
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-/* 배너 섹션 */
-.event-banner {
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-    color: white;
-    padding: 60px 40px;
-    border-radius: 20px;
-    text-align: center;
-    margin-bottom: 60px;
-}
-
-.event-banner h2 {
-    font-size: 32px;
-    font-weight: 700;
+.event-meta {
+    font-size: 13px;
+    color: #9ca3af;
     margin-bottom: 16px;
 }
 
-.event-banner p {
-    font-size: 18px;
-    opacity: 0.9;
-    margin-bottom: 24px;
+.meta-item {
+    margin-bottom: 4px;
 }
 
-.btn-banner {
-    padding: 14px 32px;
+/* 이벤트 리스트 테이블 */
+.event-list-table {
     background: white;
-    color: #3b82f6;
-    border: none;
-    border-radius: 30px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
-.btn-banner:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.event-list-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.event-list-table td {
+    vertical-align: middle;
+}
+
+/* 빈 상태 */
+.no-events {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 80px 20px;
+    color: #9ca3af;
+}
+
+.no-events i {
+    font-size: 64px;
+    margin-bottom: 16px;
 }
 
 /* 반응형 */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
+    .event-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .event-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
     .event-grid {
         grid-template-columns: 1fr;
-        gap: 20px;
     }
     
-    .event-header h1 {
+    .page-title {
         font-size: 28px;
     }
     
-    .event-banner {
-        padding: 40px 20px;
+    .page-desc {
+        font-size: 16px;
     }
     
-    .event-banner h2 {
-        font-size: 24px;
+    .event-tabs .nav-link {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    .admin-buttons {
+        flex-direction: column;
     }
 }
 </style>
 
-<!-- ===================================
-     이벤트 페이지 콘텐츠
-     =================================== -->
-<div class="event-container">
-    <!-- 페이지 헤더 -->
-    <div class="event-header">
-        <h1>이벤트</h1>
-        <p>다양한 혜택과 특별한 이벤트를 만나보세요</p>
-    </div>
-    
-    <!-- 이벤트 탭 -->
-    <div class="event-tabs">
-        <button class="tab-btn active" onclick="filterEvents('all')">전체</button>
-        <button class="tab-btn" onclick="filterEvents('ongoing')">진행중</button>
-        <button class="tab-btn" onclick="filterEvents('upcoming')">예정</button>
-        <button class="tab-btn" onclick="filterEvents('ended')">종료</button>
-    </div>
-    
-    <!-- 메인 배너 이벤트 -->
-    <div class="event-banner">
-        <h2>🎉 신규 회원 가입 이벤트</h2>
-        <p>지금 가입하시면 특별한 혜택을 드립니다!</p>
-        <button class="btn-banner" onclick="showEventDetail('new-member')">
-            자세히 보기
-        </button>
-    </div>
-    
-    <!-- 이벤트 그리드 -->
-    <div class="event-grid">
-        <!-- 이벤트 카드 1 -->
-        <div class="event-card" data-status="ongoing">
-            <div class="event-image">
-                <div class="event-badge ongoing">진행중</div>
-                <i class="bi bi-gift" style="font-size: 80px; color: white;"></i>
-            </div>
-            <div class="event-content">
-                <span class="event-category">신규가입</span>
-                <h3 class="event-title">웰컴 보너스 이벤트</h3>
-                <p class="event-desc">첫 거래 시 수수료 50% 할인 혜택을 제공합니다.</p>
-                <div class="event-period">
-                    <i class="bi bi-calendar-check"></i>
-                    <span>2025.01.01 ~ 2025.02.28</span>
-                </div>
-                <div class="event-action">
-                    <button class="btn-participate" onclick="participateEvent('welcome-bonus')">
-                        참여하기
-                    </button>
-                    <button class="btn-detail" onclick="showEventDetail('welcome-bonus')">
-                        상세보기
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 이벤트 카드 2 -->
-        <div class="event-card" data-status="ongoing">
-            <div class="event-image" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                <div class="event-badge ongoing">진행중</div>
-                <i class="bi bi-people-fill" style="font-size: 80px; color: white;"></i>
-            </div>
-            <div class="event-content">
-                <span class="event-category">추천</span>
-                <h3 class="event-title">친구 추천 이벤트</h3>
-                <p class="event-desc">친구를 추천하고 추천인과 함께 포인트를 받으세요!</p>
-                <div class="event-period">
-                    <i class="bi bi-calendar-check"></i>
-                    <span>2025.01.15 ~ 2025.03.31</span>
-                </div>
-                <div class="event-action">
-                    <button class="btn-participate" onclick="participateEvent('referral')">
-                        참여하기
-                    </button>
-                    <button class="btn-detail" onclick="showEventDetail('referral')">
-                        상세보기
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 이벤트 카드 3 -->
-        <div class="event-card" data-status="upcoming">
-            <div class="event-image" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                <div class="event-badge upcoming">예정</div>
-                <i class="bi bi-trophy-fill" style="font-size: 80px; color: white;"></i>
-            </div>
-            <div class="event-content">
-                <span class="event-category">경품</span>
-                <h3 class="event-title">월간 트레이딩 대회</h3>
-                <p class="event-desc">최고의 수익률을 달성한 회원에게 특별한 상품을 드립니다.</p>
-                <div class="event-period">
-                    <i class="bi bi-calendar-check"></i>
-                    <span>2025.02.01 ~ 2025.02.28</span>
-                </div>
-                <div class="event-action">
-                    <button class="btn-participate" disabled>
-                        곧 시작됩니다
-                    </button>
-                    <button class="btn-detail" onclick="showEventDetail('trading-contest')">
-                        상세보기
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 이벤트 카드 4 -->
-        <div class="event-card" data-status="ended">
-            <div class="event-image" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
-                <div class="event-badge" style="background: #6b7280;">종료</div>
-                <i class="bi bi-calendar-x" style="font-size: 80px; color: white;"></i>
-            </div>
-            <div class="event-content">
-                <span class="event-category">특별</span>
-                <h3 class="event-title">연말 특별 이벤트</h3>
-                <p class="event-desc">2024년을 마무리하는 특별한 이벤트였습니다.</p>
-                <div class="event-period">
-                    <i class="bi bi-calendar-check"></i>
-                    <span>2024.12.01 ~ 2024.12.31</span>
-                </div>
-                <div class="event-action">
-                    <button class="btn-participate" disabled>
-                        종료됨
-                    </button>
-                    <button class="btn-detail" onclick="showEventDetail('year-end')">
-                        결과보기
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 이벤트 상세 모달 -->
-<div id="eventModal" class="event-modal">
-    <div class="modal-container">
-        <div class="modal-header">
-            <h3 id="modalTitle">이벤트 상세</h3>
-            <button class="modal-close" onclick="hideEventModal()">
-                <i class="bi bi-x"></i>
-            </button>
-        </div>
-        <div class="modal-body" id="modalContent">
-            <!-- 동적으로 내용 추가 -->
-        </div>
-    </div>
-</div>
-
 <script>
-// 이벤트 필터링
-function filterEvents(status) {
-    // 탭 활성화
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    // 카드 필터링
-    const cards = document.querySelectorAll('.event-card');
-    cards.forEach(card => {
-        if (status === 'all' || card.dataset.status === status) {
-            card.style.display = 'block';
-        } else {
-            card.style.display = 'none';
-        }
-    });
-}
-
-// 이벤트 참여
-function participateEvent(eventId) {
-    <?php if (!$is_member) { ?>
-        alert('로그인 후 참여하실 수 있습니다.');
-        location.href = '<?php echo G5_BBS_URL ?>/login.php';
+// 이벤트 삭제
+function deleteEvent(ev_id) {
+    if(!confirm('정말 이 이벤트를 삭제하시겠습니까?')) {
         return;
-    <?php } ?>
-    
-    if (confirm('이벤트에 참여하시겠습니까?')) {
-        // 실제로는 AJAX로 처리
-        alert('이벤트 참여가 완료되었습니다!');
     }
-}
-
-// 이벤트 상세 보기
-function showEventDetail(eventId) {
-    const modal = document.getElementById('eventModal');
-    const title = document.getElementById('modalTitle');
-    const content = document.getElementById('modalContent');
     
-    // 이벤트별 상세 내용 (실제로는 AJAX로 불러옴)
-    const eventDetails = {
-        'new-member': {
-            title: '신규 회원 가입 이벤트',
-            content: `
-                <div style="text-align: center; margin-bottom: 30px;">
-                    <i class="bi bi-gift" style="font-size: 80px; color: #3b82f6;"></i>
-                </div>
-                <h4>이벤트 내용</h4>
-                <ul style="line-height: 2;">
-                    <li>신규 회원가입 시 10,000 포인트 즉시 지급</li>
-                    <li>첫 거래 수수료 50% 할인</li>
-                    <li>VIP 등급 체험 기회 제공 (1개월)</li>
-                </ul>
-                <h4 style="margin-top: 30px;">참여 방법</h4>
-                <ol style="line-height: 2;">
-                    <li>회원가입을 완료합니다</li>
-                    <li>이메일 인증을 완료합니다</li>
-                    <li>첫 입금을 진행합니다</li>
-                    <li>자동으로 혜택이 적용됩니다</li>
-                </ol>
-                <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin-top: 30px;">
-                    <p style="margin: 0; color: #1e40af;">
-                        <i class="bi bi-info-circle"></i> 
-                        본 이벤트는 신규 회원에 한해 1회만 참여 가능합니다.
-                    </p>
-                </div>
-            `
+    fetch('<?php echo G5_URL; ?>/ajax/event_delete.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
         },
-        'welcome-bonus': {
-            title: '웰컴 보너스 이벤트',
-            content: `
-                <h4>혜택 내용</h4>
-                <p>첫 거래 시 수수료 50% 할인</p>
-            `
-        },
-        'referral': {
-            title: '친구 추천 이벤트',
-            content: `
-                <h4>추천 혜택</h4>
-                <p>추천인과 피추천인 모두 5,000 포인트 지급</p>
-            `
+        body: 'ev_id=' + ev_id
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
+            alert('이벤트가 삭제되었습니다.');
+            location.reload();
+        } else {
+            alert(data.message || '삭제 중 오류가 발생했습니다.');
         }
-    };
-    
-    const detail = eventDetails[eventId] || {
-        title: '이벤트 상세',
-        content: '<p>이벤트 상세 내용을 준비중입니다.</p>'
-    };
-    
-    title.textContent = detail.title;
-    content.innerHTML = detail.content;
-    
-    modal.classList.add('show');
+    });
 }
-
-// 모달 닫기
-function hideEventModal() {
-    document.getElementById('eventModal').classList.remove('show');
-}
-
-// 모달 외부 클릭 시 닫기
-document.getElementById('eventModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        hideEventModal();
-    }
-});
 </script>
 
 <?php
-include_once('./_tail.php');
+// 헬퍼 함수들
+function get_event_count($status) {
+    $sql = "SELECT COUNT(*) as cnt FROM g5_event WHERE ev_status = '{$status}'";
+    $row = sql_fetch($sql);
+    return $row['cnt'];
+}
+
+function get_status_text($status) {
+    switch($status) {
+        case 'ongoing': return '진행중인';
+        case 'scheduled': return '진행 예정인';
+        case 'ended': return '종료된';
+        default: return '';
+    }
+}
+
+// 테이블 존재 확인 함수
+function sql_table_exists($table_name) {
+    $sql = "SHOW TABLES LIKE '{$table_name}'";
+    $result = sql_query($sql);
+    return sql_num_rows($result) > 0;
+}
+
+include_once(G5_PATH.'/tail.php');
 ?>

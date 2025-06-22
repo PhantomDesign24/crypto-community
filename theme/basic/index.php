@@ -957,105 +957,356 @@ include_once(G5_PATH.'/head.php');
     <div class="ticker-title">
         <i class="bi bi-megaphone"></i> 실시간 지급
     </div>
-    <div class="ticker-content">
-        <?php
-        // 샘플 데이터 (실제로는 DB에서 가져옴)
-        $payments = [
-            ['name' => '김*수', 'amount' => '100 USDT', 'event' => '신규가입 이벤트'],
-            ['name' => '이*희', 'amount' => '50 USDT', 'event' => '친구추천 이벤트'],
-            ['name' => '박*철', 'amount' => '200 USDT', 'event' => '거래인증 이벤트'],
-            ['name' => '최*영', 'amount' => '150 USDT', 'event' => '댓글 이벤트'],
-            ['name' => '정*호', 'amount' => '80 USDT', 'event' => '출석체크 이벤트']
-        ];
-        
-        // 2번 반복하여 끊김없는 스크롤 구현
-        for($i = 0; $i < 2; $i++) {
-            foreach($payments as $payment) {
-        ?>
-        <span class="ticker-item">
-            <i class="bi bi-gift-fill"></i>
-            <?php echo $payment['name']; ?>님 
-            <strong><?php echo $payment['amount']; ?></strong> 
-            <?php echo $payment['event']; ?> 지급완료
-        </span>
-        <?php 
-            }
-        }
-        ?>
-    </div>
+	<div class="ticker-content">
+		<?php
+		// 전광판 데이터 읽기
+		$ticker_file = G5_DATA_PATH.'/cache/ticker_data.json';
+		$ticker_items = array();
+		
+		if(file_exists($ticker_file)) {
+			$json_data = file_get_contents($ticker_file);
+			$ticker_items = json_decode($json_data, true);
+		}
+		
+		// 데이터가 없으면 샘플 데이터 표시
+		if(empty($ticker_items)) {
+			$ticker_items = [
+				['name' => '김*수', 'amount' => '100 USDT', 'event' => '신규가입 이벤트'],
+				['name' => '이*희', 'amount' => '50 USDT', 'event' => '친구추천 이벤트'],
+				['name' => '박*철', 'amount' => '200 USDT', 'event' => '거래인증 이벤트'],
+				['name' => '최*영', 'amount' => '150 USDT', 'event' => '댓글 이벤트'],
+				['name' => '정*호', 'amount' => '80 USDT', 'event' => '출석체크 이벤트']
+			];
+		}
+		
+		// 2번 반복하여 끊김없는 스크롤 구현
+		for($i = 0; $i < 2; $i++) {
+			foreach($ticker_items as $item) {
+		?>
+		<span class="ticker-item">
+			<i class="bi bi-gift-fill"></i>
+			<?php echo $item['name']; ?>님 
+			<strong><?php echo $item['amount']; ?></strong> 
+			<?php echo $item['event']; ?> 지급완료
+		</span>
+		<?php 
+			}
+		}
+		?>
+	</div>
 </div>
 
-<!-- =================================== -->
-<!-- 이벤트 섹션 -->
-<!-- =================================== -->
-<section class="section section-bg">
+<!-- ===================================
+     이벤트 섹션
+     =================================== -->
+<section class="events-section" style="padding: 80px 0; background: #f8f9fa;">
     <div class="container">
-        <div class="section-header">
-            <h2 class="section-title">진행중인 이벤트</h2>
-            <p class="section-subtitle">다양한 에어드랍과 보상 이벤트에 참여하세요</p>
+        <div class="text-center mb-5">
+            <h2 class="h1 fw-bold mb-3">
+                <i class="bi bi-gift-fill text-primary"></i>
+                에어드랍 이벤트
+            </h2>
+            <p class="lead text-muted">다양한 코인 에어드랍 이벤트에 참여하세요</p>
         </div>
         
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="event-card card-hot">
-                    <span class="event-badge">HOT</span>
-                    <div class="event-decoration"></div>
-                    <div class="event-content">
-                        <div class="event-icon">
-                            <i class="bi bi-fire"></i>
-                        </div>
-                        <h4>신규 가입 이벤트</h4>
-                        <p class="text-muted">지금 가입하고 즉시 받는 보상</p>
-                        <div class="event-reward">100 USDT</div>
-                        <p class="mb-4">회원가입 후 이메일 인증 완료시 즉시 지급</p>
-                        <a href="<?php echo G5_URL ?>/event.php" class="btn-gradient w-100">
-                            참여하기 <i class="bi bi-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
+        <!-- 이벤트 탭 -->
+        <ul class="nav nav-pills justify-content-center mb-5" id="eventTabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-status="ongoing" href="#ongoing">
+                    <i class="bi bi-play-circle"></i> 진행중
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-status="scheduled" href="#scheduled">
+                    <i class="bi bi-clock"></i> 진행예정
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-status="ended" href="#ended">
+                    <i class="bi bi-check-circle"></i> 진행종료
+                </a>
+            </li>
+        </ul>
+        
+        <!-- 이벤트 그리드 -->
+        <div class="event-grid" id="eventGrid">
+            <?php
+            // 추천 이벤트 가져오기
+            $sql = "SELECT * FROM g5_event 
+                    WHERE ev_recommend = 1 
+                    AND ev_status = 'ongoing'
+                    ORDER BY ev_id DESC 
+                    LIMIT 6";
+            $result = sql_query($sql);
             
-            <div class="col-md-4">
-                <div class="event-card card-new">
-                    <span class="event-badge">NEW</span>
-                    <div class="event-decoration"></div>
+            while($row = sql_fetch_array($result)) {
+                $remaining_days = floor((strtotime($row['ev_end_date']) - time()) / 86400);
+            ?>
+            <div class="event-card" data-event-id="<?php echo $row['ev_id']; ?>">
+                <div class="event-card-inner">
+                    <!-- 상태 배지 -->
+                    <div class="event-badge">
+                        <?php if($row['ev_status'] == 'ongoing') { ?>
+                            <span class="badge bg-success">진행중</span>
+                        <?php } else if($row['ev_status'] == 'scheduled') { ?>
+                            <span class="badge bg-info">진행예정</span>
+                        <?php } else { ?>
+                            <span class="badge bg-secondary">종료</span>
+                        <?php } ?>
+                    </div>
+                    
+                    <!-- 이벤트 이미지 -->
+                    <div class="event-image">
+                        <?php if($row['ev_image']) { ?>
+                            <img src="<?php echo G5_DATA_URL; ?>/event/<?php echo $row['ev_image']; ?>" alt="<?php echo $row['ev_subject']; ?>">
+                        <?php } else { ?>
+                            <div class="event-no-image">
+                                <i class="bi bi-gift"></i>
+                            </div>
+                        <?php } ?>
+                    </div>
+                    
+                    <!-- 이벤트 내용 -->
                     <div class="event-content">
-                        <div class="event-icon">
-                            <i class="bi bi-people"></i>
+                        <div class="event-coin-info">
+                            <span class="coin-symbol"><?php echo $row['ev_coin_symbol']; ?></span>
+                            <span class="coin-amount"><?php echo $row['ev_coin_amount']; ?></span>
                         </div>
-                        <h4>친구 추천 이벤트</h4>
-                        <p class="text-muted">친구와 함께 받는 더블 보상</p>
-                        <div class="event-reward">50 + 50 USDT</div>
-                        <p class="mb-4">추천인과 신규회원 모두에게 지급</p>
-                        <a href="<?php echo G5_URL ?>/event.php" class="btn-gradient w-100">
-                            참여하기 <i class="bi bi-arrow-right"></i>
-                        </a>
+                        <h4 class="event-title"><?php echo $row['ev_subject']; ?></h4>
+                        <p class="event-summary"><?php echo $row['ev_summary']; ?></p>
+                        
+                        <div class="event-meta">
+                            <div class="meta-item">
+                                <i class="bi bi-calendar-event"></i>
+                                <span>D-<?php echo $remaining_days; ?></span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="bi bi-people"></i>
+                                <span><?php echo number_format($row['ev_apply_count']); ?>명 참여</span>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary btn-sm w-100 mt-3" onclick="viewEvent(<?php echo $row['ev_id']; ?>)">
+                            <i class="bi bi-arrow-right-circle"></i> 참여하기
+                        </button>
                     </div>
                 </div>
             </div>
-            
-            <div class="col-md-4">
-                <div class="event-card card-special">
-                    <span class="event-badge">SPECIAL</span>
-                    <div class="event-decoration"></div>
-                    <div class="event-content">
-                        <div class="event-icon">
-                            <i class="bi bi-camera"></i>
-                        </div>
-                        <h4>거래 인증 이벤트</h4>
-                        <p class="text-muted">거래 스크린샷 제출시</p>
-                        <div class="event-reward">최대 500 USDT</div>
-                        <p class="mb-4">월간 거래량에 따라 차등 지급</p>
-                        <a href="<?php echo G5_URL ?>/event.php" class="btn-gradient w-100">
-                            참여하기 <i class="bi bi-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
+            <?php } ?>
+        </div>
+        
+        <!-- 더보기 버튼 -->
+        <div class="text-center mt-5">
+            <a href="<?php echo G5_URL; ?>/event.php" class="btn btn-outline-primary btn-lg">
+                <i class="bi bi-grid-3x3-gap"></i> 모든 이벤트 보기
+            </a>
         </div>
     </div>
 </section>
 
+<style>
+/* 이벤트 섹션 스타일 */
+.events-section {
+    position: relative;
+    overflow: hidden;
+}
+
+/* 이벤트 탭 */
+.nav-pills .nav-link {
+    color: #6b7280;
+    background: white;
+    border: 1px solid #e5e7eb;
+    margin: 0 5px;
+    padding: 10px 24px;
+    border-radius: 30px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.nav-pills .nav-link:hover {
+    background: #f3f4f6;
+}
+
+.nav-pills .nav-link.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+/* 이벤트 그리드 */
+.event-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+}
+
+/* 이벤트 카드 */
+.event-card {
+    position: relative;
+    cursor: pointer;
+}
+
+.event-card-inner {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s;
+    height: 100%;
+}
+
+.event-card:hover .event-card-inner {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* 상태 배지 */
+.event-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+}
+
+/* 이벤트 이미지 */
+.event-image {
+    width: 100%;
+    height: 200px;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.event-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.event-no-image {
+    font-size: 60px;
+    color: #d1d5db;
+}
+
+/* 이벤트 내용 */
+.event-content {
+    padding: 24px;
+}
+
+.event-coin-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.coin-symbol {
+    background: #eff6ff;
+    color: #3b82f6;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.coin-amount {
+    color: #16a34a;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.event-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #1f2937;
+    line-height: 1.4;
+}
+
+.event-summary {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 16px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.event-meta {
+    display: flex;
+    gap: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f3f4f6;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.meta-item i {
+    color: #9ca3af;
+}
+
+/* 반응형 */
+@media (max-width: 992px) {
+    .event-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .event-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .nav-pills .nav-link {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+}
+</style>
+
+<script>
+// 이벤트 탭 전환
+document.querySelectorAll('#eventTabs .nav-link').forEach(tab => {
+    tab.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // 활성 탭 변경
+        document.querySelectorAll('#eventTabs .nav-link').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        // 이벤트 로드
+        const status = this.getAttribute('data-status');
+        loadEvents(status);
+    });
+});
+
+// 이벤트 로드 함수
+function loadEvents(status) {
+    fetch(`<?php echo G5_URL; ?>/ajax/get_events.php?status=${status}`)
+        .then(response => response.json())
+        .then(data => {
+            const grid = document.getElementById('eventGrid');
+            grid.innerHTML = data.html;
+        });
+}
+
+// 이벤트 상세보기
+function viewEvent(eventId) {
+    // 모달로 이벤트 상세 표시
+    window.location.href = `<?php echo G5_URL; ?>/event.php?ev_id=${eventId}`;
+}
+</script>
 
 <!-- =================================== -->
 <!-- 크립토 마케팅 소개 섹션 -->
@@ -1143,11 +1394,10 @@ include_once(G5_PATH.'/head.php');
         </div>
     </div>
 </section>
-
 <!-- ===================================
      프로젝트 진행 사례 섹션
      =================================== -->
-<section class="cmk-projects-showcase" style="background: #f8f9fa; padding: 80px 0; overflow: hidden;">
+<section class="cmk-projects-showcase" style="background: #f8f9fa; padding: 80px 0;">
     <div class="container">
         <div class="text-center mb-5">
             <h2 class="h1 fw-bold mb-3">
@@ -1157,74 +1407,60 @@ include_once(G5_PATH.'/head.php');
             <p class="lead text-muted">성공적으로 진행한 코인 마케팅 프로젝트</p>
         </div>
         
-        <div class="cmk-ps-slider-wrapper position-relative">
-            <button class="cmk-ps-nav cmk-ps-nav-prev d-none d-md-flex" onclick="slideProjects('prev')">
-                <i class="bi bi-chevron-left"></i>
-            </button>
-            <button class="cmk-ps-nav cmk-ps-nav-next d-none d-md-flex" onclick="slideProjects('next')">
-                <i class="bi bi-chevron-right"></i>
-            </button>
+        <!-- 프로젝트 그리드 -->
+        <div class="cmk-ps-grid">
+            <?php
+            $projects = [
+                ['name' => 'BONK', 'file' => 'BONK.png'],
+                ['name' => 'ACS', 'file' => 'ACS(액세스플토콜.png', 'full' => '액세스플토콜'],
+                ['name' => 'AHT', 'file' => 'AHT(아하토큰.png', 'full' => '아하토큰'],
+                ['name' => 'ALT', 'file' => 'ALT알트레이어.png', 'full' => '알트레이어'],
+                ['name' => 'ANIME', 'file' => 'ANIME애니메코인.png', 'full' => '애니메코인'],
+                ['name' => 'ARPA', 'file' => 'ARPA(알파.png', 'full' => '알파'],
+                ['name' => 'ASTR', 'file' => 'ASTR아스타.png', 'full' => '아스타'],
+                ['name' => 'BEAM', 'file' => 'BEAM(빔.png', 'full' => '빔'],
+                ['name' => 'BIGTIME', 'file' => 'BIGTIME빅타임.png', 'full' => '빅타임'],
+                ['name' => 'BLAST', 'file' => 'BLAST(블라스트.png', 'full' => '블라스트'],
+                ['name' => 'NCT', 'file' => 'NCT폴리스웜.png', 'full' => '폴리스웜'],
+                ['name' => 'OAS', 'file' => 'OAS(오아시스.png', 'full' => '오아시스'],
+                ['name' => 'BRETT', 'file' => 'BRETT브렛.png', 'full' => '브렛'],
+                ['name' => 'CKB', 'file' => 'CKB(너보스.png', 'full' => '너보스'],
+                ['name' => 'DGB', 'file' => 'DGB(디지바이트.png', 'full' => '디지바이트'],
+                ['name' => 'EPT', 'file' => 'EPT(밸런스.png', 'full' => '밸런스'],
+                ['name' => 'GO', 'file' => 'GO(고체인.png', 'full' => '고체인'],
+                ['name' => 'JASMY', 'file' => 'JASMY재스미코인.png', 'full' => '재스미코인'],
+                ['name' => 'LWA', 'file' => 'LWA(루미웨이브.png', 'full' => '루미웨이브'],
+                ['name' => 'MEW', 'file' => 'MEW(캣인어독스월드.png', 'full' => '캣인어독스월드'],
+                ['name' => 'RVN', 'file' => 'RVN(레이븐코인.png', 'full' => '레이븐코인'],
+                ['name' => 'SC', 'file' => 'SC(시아코인.png', 'full' => '시아코인'],
+                ['name' => 'SOPH', 'file' => 'SOPH소폰.png', 'full' => '소폰'],
+                ['name' => 'OBSR', 'file' => 'OBSR(옵저버.png', 'full' => '옵저버'],
+                ['name' => 'OXT', 'file' => 'OXT오키드.png', 'full' => '오키드'],
+                ['name' => 'PENGU', 'file' => 'PENGU(펏지펭귄.png', 'full' => '펏지펭귄'],
+                ['name' => 'POKT', 'file' => 'POKT포켓네트워크.png', 'full' => '포켓네트워크'],
+                ['name' => 'QTCON', 'file' => 'QTCON(퀴즈톡.png', 'full' => '퀴즈톡'],
+                ['name' => 'RLY', 'file' => 'RLY랠리.png', 'full' => '랠리'],
+                ['name' => 'W', 'file' => 'W웜홀.png', 'full' => '웜홀'],
+                ['name' => 'SWELL', 'file' => 'SWELL(스웰네트워크.png', 'full' => '스웰네트워크'],
+                ['name' => 'VTHO', 'file' => 'VTHO(비토르토큰.png', 'full' => '비토르토큰']
+            ];
             
-            <div class="cmk-ps-slider-container">
-                <div class="cmk-ps-slider d-flex" id="projectSlider">
-                    <?php
-                    $projects = [
-                        ['name' => 'BONK', 'file' => 'BONK.png'],
-                        ['name' => 'ACS', 'file' => 'ACS(액세스플토콜.png', 'full' => '액세스플토콜'],
-                        ['name' => 'AHT', 'file' => 'AHT(아하토큰.png', 'full' => '아하토큰'],
-                        ['name' => 'ALT', 'file' => 'ALT알트레이어.png', 'full' => '알트레이어'],
-                        ['name' => 'ANIME', 'file' => 'ANIME애니메코인.png', 'full' => '애니메코인'],
-                        ['name' => 'ARPA', 'file' => 'ARPA(알파.png', 'full' => '알파'],
-                        ['name' => 'ASTR', 'file' => 'ASTR아스타.png', 'full' => '아스타'],
-                        ['name' => 'BEAM', 'file' => 'BEAM(빔.png', 'full' => '빔'],
-                        ['name' => 'BIGTIME', 'file' => 'BIGTIME빅타임.png', 'full' => '빅타임'],
-                        ['name' => 'BLAST', 'file' => 'BLAST(블라스트.png', 'full' => '블라스트'],
-                        ['name' => 'NCT', 'file' => 'NCT폴리스웜.png', 'full' => '폴리스웜'],
-                        ['name' => 'OAS', 'file' => 'OAS(오아시스.png', 'full' => '오아시스'],
-                        ['name' => 'BRETT', 'file' => 'BRETT브렛.png', 'full' => '브렛'],
-                        ['name' => 'CKB', 'file' => 'CKB(너보스.png', 'full' => '너보스'],
-                        ['name' => 'DGB', 'file' => 'DGB(디지바이트.png', 'full' => '디지바이트'],
-                        ['name' => 'EPT', 'file' => 'EPT(밸런스.png', 'full' => '밸런스'],
-                        ['name' => 'GO', 'file' => 'GO(고체인.png', 'full' => '고체인'],
-                        ['name' => 'JASMY', 'file' => 'JASMY재스미코인.png', 'full' => '재스미코인'],
-                        ['name' => 'LWA', 'file' => 'LWA(루미웨이브.png', 'full' => '루미웨이브'],
-                        ['name' => 'MEW', 'file' => 'MEW(캣인어독스월드.png', 'full' => '캣인어독스월드'],
-                        ['name' => 'RVN', 'file' => 'RVN(레이븐코인.png', 'full' => '레이븐코인'],
-                        ['name' => 'SC', 'file' => 'SC(시아코인.png', 'full' => '시아코인'],
-                        ['name' => 'SOPH', 'file' => 'SOPH소폰.png', 'full' => '소폰'],
-                        ['name' => 'OBSR', 'file' => 'OBSR(옵저버.png', 'full' => '옵저버'],
-                        ['name' => 'OXT', 'file' => 'OXT오키드.png', 'full' => '오키드'],
-                        ['name' => 'PENGU', 'file' => 'PENGU(펏지펭귄.png', 'full' => '펏지펭귄'],
-                        ['name' => 'PEPE', 'file' => 'PEPE.png'],
-                        ['name' => 'POKT', 'file' => 'POKT포켓네트워크.png', 'full' => '포켓네트워크'],
-                        ['name' => 'QTCON', 'file' => 'QTCON(퀴즈톡.png', 'full' => '퀴즈톡'],
-                        ['name' => 'RLY', 'file' => 'RLY랠리.png', 'full' => '랠리'],
-                        ['name' => 'W', 'file' => 'W웜홀.png', 'full' => '웜홀'],
-                        ['name' => 'SWELL', 'file' => 'SWELL(스웰네트워크.png', 'full' => '스웰네트워크'],
-                        ['name' => 'VTHO', 'file' => 'VTHO(비토르토큰.png', 'full' => '비토르토큰']
-                    ];
-                    
-                    foreach ($projects as $project) {
-                        $full_name = isset($project['full']) ? $project['full'] : $project['name'];
-                    ?>
-                    <div class="cmk-ps-item">
-                        <div class="cmk-ps-item-inner bg-white rounded-3 p-3 text-center h-100 shadow-sm">
-                            <div class="cmk-ps-logo mx-auto mb-3">
-                                <img src="<?php echo G5_IMG_URL; ?>/<?php echo $project['file']; ?>" 
-                                     alt="<?php echo $full_name; ?>" 
-                                     class="img-fluid">
-                            </div>
-                            <h5 class="cmk-ps-name fw-bold mb-1"><?php echo $project['name']; ?></h5>
-                            <p class="cmk-ps-fullname text-muted small mb-0"><?php echo $full_name; ?></p>
-                        </div>
+            foreach ($projects as $project) {
+                $full_name = isset($project['full']) ? $project['full'] : $project['name'];
+            ?>
+            <div class="cmk-ps-item">
+                <div class="cmk-ps-item-inner bg-white rounded-3 p-3 text-center h-100 shadow-sm">
+                    <div class="cmk-ps-logo mx-auto mb-3">
+                        <img src="<?php echo G5_IMG_URL; ?>/<?php echo $project['file']; ?>" 
+                             alt="<?php echo $full_name; ?>" 
+                             class="img-fluid">
                     </div>
-                    <?php } ?>
+                    <h5 class="cmk-ps-name fw-bold mb-1"><?php echo $project['name']; ?></h5>
+                    <p class="cmk-ps-fullname text-muted small mb-0"><?php echo $full_name; ?></p>
                 </div>
             </div>
+            <?php } ?>
         </div>
-        
-        <!-- 슬라이더 인디케이터 -->
-        <div class="cmk-ps-indicators d-flex justify-content-center mt-4" id="projectIndicators"></div>
     </div>
 </section>
 
@@ -1233,65 +1469,15 @@ include_once(G5_PATH.'/head.php');
  * 프로젝트 진행 사례 섹션 스타일
  * =================================== */
 
-/* 슬라이더 래퍼 */
-.cmk-ps-slider-wrapper {
-    position: relative;
-}
-
-/* 네비게이션 버튼 */
-.cmk-ps-nav {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 48px;
-    height: 48px;
-    background: white;
-    border: none;
-    border-radius: 50%;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    cursor: pointer;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s;
-}
-
-.cmk-ps-nav:hover {
-    background: #0d6efd;
-    color: white;
-    transform: translateY(-50%) scale(1.1);
-}
-
-.cmk-ps-nav-prev {
-    left: -60px;
-}
-
-.cmk-ps-nav-next {
-    right: -60px;
-}
-
-.cmk-ps-nav i {
-    font-size: 24px;
-}
-
-/* 슬라이더 컨테이너 */
-.cmk-ps-slider-container {
-    overflow: hidden;
-    margin: 0 -10px;
-}
-
-.cmk-ps-slider {
-    transition: transform 0.5s ease;
-    padding: 10px 0;
+/* 프로젝트 그리드 */
+.cmk-ps-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 20px;
+    padding: 20px 0;
 }
 
 /* 프로젝트 아이템 */
-.cmk-ps-item {
-    flex: 0 0 16.666%;
-    padding: 0 10px;
-}
-
 .cmk-ps-item-inner {
     transition: all 0.3s;
     cursor: pointer;
@@ -1329,32 +1515,18 @@ include_once(G5_PATH.'/head.php');
     font-size: 12px;
 }
 
-/* 인디케이터 */
-.cmk-ps-indicators {
-    gap: 8px;
+/* 태블릿 (768px - 1024px) */
+@media (max-width: 1024px) {
+    .cmk-ps-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
 }
 
-.cmk-ps-indicator {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #dee2e6;
-    cursor: pointer;
-    transition: all 0.3s;
-    border: none;
-}
-
-.cmk-ps-indicator.active {
-    width: 32px;
-    border-radius: 4px;
-    background: #0d6efd;
-}
-
-/* 모바일 */
+/* 모바일 (768px 이하) */
 @media (max-width: 768px) {
-    /* 프로젝트 슬라이더 모바일 */
-    .cmk-ps-item {
-        flex: 0 0 50%;
+    .cmk-ps-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
     }
     
     .cmk-ps-logo {
@@ -1374,136 +1546,15 @@ include_once(G5_PATH.'/head.php');
     .cmk-ps-item-inner {
         padding: 0.75rem !important;
     }
-    
-    /* 모바일에서 터치 스크롤 */
-    .cmk-ps-slider-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-    }
-    
-    .cmk-ps-slider-container::-webkit-scrollbar {
-        display: none;
+}
+
+/* 작은 모바일 (480px 이하) */
+@media (max-width: 480px) {
+    .cmk-ps-grid {
+        gap: 10px;
     }
 }
 </style>
-
-
-
-<script>
-// 프로젝트 슬라이더 기능
-let currentSlide = 0;
-let itemsPerView = window.innerWidth > 768 ? 6 : 2;
-const totalItems = 33;
-const totalSlides = Math.ceil(totalItems / itemsPerView);
-
-// 인디케이터 생성
-function createIndicators() {
-    const indicatorsContainer = document.getElementById('projectIndicators');
-    indicatorsContainer.innerHTML = '';
-    
-    for (let i = 0; i < totalSlides; i++) {
-        const indicator = document.createElement('button');
-        indicator.className = 'cmk-ps-indicator' + (i === 0 ? ' active' : '');
-        indicator.onclick = () => goToSlide(i);
-        indicatorsContainer.appendChild(indicator);
-    }
-}
-
-// 슬라이드 이동
-function slideProjects(direction) {
-    if (direction === 'next') {
-        currentSlide = (currentSlide + 1) % totalSlides;
-    } else {
-        currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
-    }
-    updateSlider();
-}
-
-// 특정 슬라이드로 이동
-function goToSlide(index) {
-    currentSlide = index;
-    updateSlider();
-}
-
-// 슬라이더 업데이트
-function updateSlider() {
-    const slider = document.getElementById('projectSlider');
-    const itemWidth = 100 / itemsPerView;
-    const translateX = -currentSlide * 100;
-    slider.style.transform = `translateX(${translateX}%)`;
-    
-    // 인디케이터 업데이트
-    document.querySelectorAll('.cmk-ps-indicator').forEach((indicator, index) => {
-        indicator.classList.toggle('active', index === currentSlide);
-    });
-}
-
-// 자동 슬라이드
-let autoSlideInterval;
-function startAutoSlide() {
-    autoSlideInterval = setInterval(() => {
-        slideProjects('next');
-    }, 5000);
-}
-
-function stopAutoSlide() {
-    clearInterval(autoSlideInterval);
-}
-
-// 초기화
-document.addEventListener('DOMContentLoaded', function() {
-    createIndicators();
-    startAutoSlide();
-    
-    // 호버 시 자동 슬라이드 멈춤
-    const sliderWrapper = document.querySelector('.cmk-ps-slider-wrapper');
-    if (sliderWrapper) {
-        sliderWrapper.addEventListener('mouseenter', stopAutoSlide);
-        sliderWrapper.addEventListener('mouseleave', startAutoSlide);
-    }
-    
-    // 반응형 처리
-    window.addEventListener('resize', function() {
-        const newItemsPerView = window.innerWidth > 768 ? 6 : 2;
-        if (newItemsPerView !== itemsPerView) {
-            itemsPerView = newItemsPerView;
-            currentSlide = 0;
-            createIndicators();
-            updateSlider();
-        }
-    });
-    
-    // 모바일 터치 스와이프
-    let touchStartX = 0;
-    let touchEndX = 0;
-    
-    const sliderContainer = document.querySelector('.cmk-ps-slider-container');
-    if (sliderContainer) {
-        sliderContainer.addEventListener('touchstart', function(e) {
-            touchStartX = e.changedTouches[0].screenX;
-        }, { passive: true });
-        
-        sliderContainer.addEventListener('touchend', function(e) {
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
-        }, { passive: true });
-    }
-    
-    function handleSwipe() {
-        if (touchEndX < touchStartX - 50) {
-            slideProjects('next');
-        }
-        if (touchEndX > touchStartX + 50) {
-            slideProjects('prev');
-        }
-    }
-});
-</script>
-
-<!-- Bootstrap Icons CDN (기존에 없다면 추가) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
-
 <?php
 include_once(G5_PATH.'/tail.php');
 ?>
