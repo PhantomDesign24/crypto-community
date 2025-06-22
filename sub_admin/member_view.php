@@ -30,12 +30,16 @@ if (!$mb_id) {
 }
 
 // ===================================
-// 회원 정보 조회
+// 회원 정보 조회 (기존 코드를 다음으로 교체)
 // ===================================
 
-/* 하위 회원인지 확인 */
-$sql = "SELECT * FROM {$g5['member_table']} 
-        WHERE mb_id = '{$mb_id}' AND mb_recommend = '{$member['mb_id']}'";
+/* 최고관리자는 모든 회원 조회 가능, 일반 관리자는 하위 회원만 */
+if ($is_admin) {
+    $sql = "SELECT * FROM {$g5['member_table']} WHERE mb_id = '{$mb_id}'";
+} else {
+    $sql = "SELECT * FROM {$g5['member_table']} 
+            WHERE mb_id = '{$mb_id}' AND mb_recommend = '{$member['mb_id']}'";
+}
 $mb = sql_fetch($sql);
 
 if (!$mb['mb_id']) {

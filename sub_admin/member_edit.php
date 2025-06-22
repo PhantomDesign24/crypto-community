@@ -34,13 +34,19 @@ if (!$mb_id) {
 // ===================================
 
 /* 하위 회원인지 확인 */
-$sql = "SELECT * FROM {$g5['member_table']} 
-        WHERE mb_id = '{$mb_id}' AND mb_recommend = '{$member['mb_id']}'";
+/* 최고관리자는 모든 회원 수정 가능, 일반 관리자는 하위 회원만 */
+if ($is_admin) {
+    $sql = "SELECT * FROM {$g5['member_table']} WHERE mb_id = '{$mb_id}'";
+} else {
+    $sql = "SELECT * FROM {$g5['member_table']} 
+            WHERE mb_id = '{$mb_id}' AND mb_recommend = '{$member['mb_id']}'";
+}
 $mb = sql_fetch($sql);
 
 if (!$mb['mb_id']) {
     alert('권한이 없거나 존재하지 않는 회원입니다.', './member_list.php');
 }
+
 
 // ===================================
 // 정보 수정 처리
@@ -97,21 +103,53 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $_POST['act'] == 'update') {
     } elseif ($_POST['mb_password'] && strlen($_POST['mb_password']) < 4) {
         alert('비밀번호는 4자 이상 입력해주세요.');
     }
-    
-    // 회원 정보 업데이트 (우편번호 필드 수정)
-    $sql = "UPDATE {$g5['member_table']} 
-            SET mb_name = '{$mb_name}',
-                mb_nick = '{$mb_nick}',
-                mb_email = '{$mb_email}',
-                mb_hp = '{$mb_hp}',
-                mb_zip1 = '',
-                mb_zip2 = '',
-                mb_addr1 = '{$mb_addr1}',
-                mb_addr2 = '{$mb_addr2}',
-                mb_addr3 = '{$mb_addr3}',
-                mb_memo = '{$mb_memo}'
-                {$sql_password}
-            WHERE mb_id = '{$mb_id}'";
+    // 추천인 변경 (최고관리자만 가능)
+	$sql_recommend = "";
+	if ($is_admin && isset($_POST['mb_recommend'])) {
+		$new_recommend = trim($_POST['mb_recommend']);
+		
+		// 추천인 유효성 검사
+		if ($new_recommend) {
+			// 자기 자신 체크
+			if ($mb_id == $new_recommend) {
+				alert('자기 자신을 추천인으로 설정할 수 없습니다.');
+			}
+			
+			// 추천인 존재 및 권한 확인
+			$rec_sql = "SELECT mb_id, mb_grade FROM {$g5['member_table']} WHERE mb_id = '{$new_recommend}'";
+			$rec_info = sql_fetch($rec_sql);
+			
+			if (!$rec_info) {
+				alert('존재하지 않는 추천인입니다.');
+			}
+			
+			if ($rec_info['mb_grade'] < 2) {
+				alert('해당 회원은 하부조직 관리 권한이 없습니다. (2등급 이상만 가능)');
+			}
+			
+			// 순환 참조 체크
+			if ($rec_info['mb_recommend'] == $mb_id) {
+				alert('순환 참조가 발생합니다. (상호 추천 불가)');
+			}
+		}
+		
+		$sql_recommend = ", mb_recommend = '{$new_recommend}' ";
+	}
+	// 회원 정보 업데이트 SQL 수정
+	$sql = "UPDATE {$g5['member_table']} 
+			SET mb_name = '{$mb_name}',
+				mb_nick = '{$mb_nick}',
+				mb_email = '{$mb_email}',
+				mb_hp = '{$mb_hp}',
+				mb_zip1 = '',
+				mb_zip2 = '',
+				mb_addr1 = '{$mb_addr1}',
+				mb_addr2 = '{$mb_addr2}',
+				mb_addr3 = '{$mb_addr3}',
+				mb_memo = '{$mb_memo}'
+				{$sql_password}
+				{$sql_recommend}
+			WHERE mb_id = '{$mb_id}'";
     
     // 쿼리 실행
     sql_query($sql);
@@ -473,7 +511,31 @@ include_once(G5_PATH.'/head.sub.php');
                         <input type="text" name="mb_nick" id="mb_nick" class="cmk-me-input" value="<?php echo get_text($mb['mb_nick']); ?>">
                     </div>
                 </div>
-                
+				<!-- 기본 정보 섹션에 추천인 필드 추가 (닉네임 필드 다음에 삽입) -->
+
+				<?php if ($is_admin) { ?>
+				<div class="cmk-me-form-group">
+					<label class="cmk-me-label">추천인 <span style="color: #6b7280; font-weight: normal;">(최고관리자 전용)</span></label>
+					<div class="cmk-me-input-wrap">
+						<i class="bi bi-person-check cmk-me-input-icon"></i>
+						<input type="text" name="mb_recommend" id="mb_recommend" class="cmk-me-input" 
+							   value="<?php echo get_text($mb['mb_recommend']); ?>" 
+							   placeholder="추천인 아이디 (비워두면 추천인 없음)">
+					</div>
+					<div style="margin-top: 8px; font-size: 13px; color: #6b7280;">
+						<i class="bi bi-info-circle"></i> 
+						2등급 이상의 회원만 추천인이 될 수 있습니다.
+					</div>
+				</div>
+				<?php } else { ?>
+				<div class="cmk-me-form-group">
+					<label class="cmk-me-label">추천인</label>
+					<div class="cmk-me-input-wrap">
+						<i class="bi bi-person-check cmk-me-input-icon"></i>
+						<input type="text" class="cmk-me-input" value="<?php echo get_text($mb['mb_recommend']); ?>" readonly>
+					</div>
+				</div>
+				<?php } ?>
                 <div class="cmk-me-form-group">
                     <label class="cmk-me-label">새 비밀번호</label>
                     <div class="cmk-me-input-wrap">

@@ -296,80 +296,293 @@ $result = sql_query($sql);
         </nav>
         <?php } ?>
         
-        <!-- 이벤트 리스트 (표 형태) -->
-        <div class="event-list-section mt-5">
-            <h3 class="section-title mb-4">
-                <i class="bi bi-list-ul"></i> 전체 이벤트 목록
-            </h3>
-            
-            <div class="table-responsive">
-                <table class="table table-hover event-list-table">
-                    <thead>
-                        <tr>
-                            <th>상태</th>
-                            <th>코인</th>
-                            <th>이벤트명</th>
-                            <th>지급수량</th>
-                            <th>기간</th>
-                            <th>참여자</th>
-                            <th>참여</th>
-                            <?php if($is_admin) { ?>
-                            <th>관리</th>
-                            <?php } ?>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        $list_sql = "SELECT * FROM g5_event ORDER BY ev_status = 'ongoing' DESC, ev_id DESC LIMIT 20";
-                        $list_result = sql_query($list_sql);
-                        while($list = sql_fetch_array($list_result)) {
-                        ?>
-                        <tr onclick="location.href='<?php echo G5_URL; ?>/event.php?ev_id=<?php echo $list['ev_id']; ?>'" style="cursor: pointer;">
-                            <td>
-                                <?php if($list['ev_status'] == 'ongoing') { ?>
-                                    <span class="badge bg-success">진행중</span>
-                                <?php } else if($list['ev_status'] == 'scheduled') { ?>
-                                    <span class="badge bg-info">예정</span>
-                                <?php } else { ?>
-                                    <span class="badge bg-secondary">종료</span>
-                                <?php } ?>
-                            </td>
-                            <td>
-                                <strong><?php echo $list['ev_coin_symbol']; ?></strong>
-                            </td>
-                            <td><?php echo $list['ev_subject']; ?></td>
-                            <td class="text-success"><?php echo $list['ev_coin_amount']; ?></td>
-                            <td>
-                                <?php echo date('Y.m.d', strtotime($list['ev_start_date'])); ?> ~ 
-                                <?php echo date('Y.m.d', strtotime($list['ev_end_date'])); ?>
-                            </td>
-                            <td><?php echo number_format($list['ev_apply_count']); ?>명</td>
-                            <td onclick="event.stopPropagation();">
-                                <?php if($list['ev_status'] == 'ongoing') { ?>
-                                    <button class="btn btn-primary btn-sm">참여</button>
-                                <?php } else { ?>
-                                    <button class="btn btn-secondary btn-sm" disabled>마감</button>
-                                <?php } ?>
-                            </td>
-                            <?php if($is_admin) { ?>
-                            <td onclick="event.stopPropagation();">
-                                <a href="<?php echo G5_URL; ?>/event.php?admin=write&ev_id=<?php echo $list['ev_id']; ?>" class="btn btn-sm btn-warning">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <a href="<?php echo G5_URL; ?>/event.php?admin=apply_list&ev_id=<?php echo $list['ev_id']; ?>" class="btn btn-sm btn-info">
-                                    <i class="bi bi-people"></i>
-                                </a>
-                            </td>
-                            <?php } ?>
-                        </tr>
+<!-- 이벤트 리스트 (표 형태) 부분을 다음으로 교체 -->
+
+<!-- 참여자 현황 -->
+<div class="participants-section mt-5">
+    <h3 class="section-title mb-4">
+        <i class="bi bi-people-fill"></i> 최근 참여자 현황
+    </h3>
+    
+    <div class="table-responsive">
+        <table class="table table-hover participants-table">
+            <thead>
+                <tr>
+                    <th width="50">#</th>
+                    <th>참여자</th>
+                    <th>이벤트명</th>
+                    <th>코인</th>
+                    <th>수량</th>
+                    <th>참여일시</th>
+                    <th>상태</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                // 최근 참여자 목록 조회
+                $participants_sql = "SELECT a.*, e.ev_subject, e.ev_coin_symbol, e.ev_coin_amount, m.mb_nick, m.mb_id 
+                                   FROM g5_event_apply a 
+                                   JOIN g5_event e ON a.ev_id = e.ev_id 
+                                   JOIN {$g5['member_table']} m ON a.mb_id = m.mb_id 
+                                   ORDER BY a.ea_datetime DESC 
+                                   LIMIT 30";
+                $participants_result = sql_query($participants_sql);
+                $num = 1;
+                
+                while($participant = sql_fetch_array($participants_result)) {
+                    // 닉네임 마스킹
+                    $masked_nick = mb_substr($participant['mb_nick'], 0, 1) . str_repeat('*', mb_strlen($participant['mb_nick']) - 2) . mb_substr($participant['mb_nick'], -1);
+                    
+                    // 아이디 마스킹
+                    $id_length = strlen($participant['mb_id']);
+                    if($id_length <= 3) {
+                        $masked_id = str_repeat('*', $id_length);
+                    } else {
+                        $masked_id = substr($participant['mb_id'], 0, 2) . str_repeat('*', $id_length - 4) . substr($participant['mb_id'], -2);
+                    }
+                ?>
+                <tr class="participant-row" data-status="<?php echo $participant['ea_status']; ?>">
+                    <td class="text-center"><?php echo $num++; ?></td>
+                    <td>
+                        <div class="participant-info">
+                            <span class="participant-nick"><?php echo $masked_nick; ?></span>
+                            <small class="text-muted">(<?php echo $masked_id; ?>)</small>
+                        </div>
+                    </td>
+                    <td>
+                        <a href="<?php echo G5_URL; ?>/event.php?ev_id=<?php echo $participant['ev_id']; ?>" 
+                           class="event-link">
+                            <?php echo $participant['ev_subject']; ?>
+                        </a>
+                    </td>
+                    <td>
+                        <span class="coin-symbol-small"><?php echo $participant['ev_coin_symbol']; ?></span>
+                    </td>
+                    <td class="text-success fw-bold">
+                        <?php echo $participant['ev_coin_amount']; ?>
+                    </td>
+                    <td class="text-muted">
+                        <?php echo date('m-d H:i', strtotime($participant['ea_datetime'])); ?>
+                    </td>
+                    <td>
+                        <?php if($participant['ea_status'] == 'applied') { ?>
+                            <span class="badge bg-warning">신청완료</span>
+                        <?php } else if($participant['ea_status'] == 'paid') { ?>
+                            <span class="badge bg-success">지급완료</span>
+                        <?php } else { ?>
+                            <span class="badge bg-secondary">대기중</span>
                         <?php } ?>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                    </td>
+                </tr>
+                <?php } ?>
+                
+                <?php if($num == 1) { ?>
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                        아직 참여자가 없습니다.
+                    </td>
+                </tr>
+                <?php } ?>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- 실시간 효과를 위한 업데이트 표시 -->
+    <div class="update-notice text-center mt-3">
+        <small class="text-muted">
+            <i class="bi bi-arrow-clockwise"></i> 
+            실시간 업데이트 중 
+            <span class="update-dot"></span>
+        </small>
     </div>
 </div>
 
+<style>
+/* 참여자 현황 테이블 */
+.participants-section {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.participants-table {
+    margin: 0;
+}
+
+.participants-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.participants-table td {
+    vertical-align: middle;
+    padding: 16px 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.participants-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* 참여자 정보 */
+.participant-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.participant-nick {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+/* 이벤트 링크 */
+.event-link {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.event-link:hover {
+    text-decoration: underline;
+}
+
+/* 코인 심볼 */
+.coin-symbol-small {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* 행 애니메이션 */
+.participant-row {
+    transition: all 0.3s ease;
+}
+
+.participant-row:hover {
+    background-color: #f9fafb;
+}
+
+/* 새로운 참여자 하이라이트 */
+.participant-row.new-entry {
+    animation: highlight 2s ease;
+}
+
+@keyframes highlight {
+    0% {
+        background-color: #fef3c7;
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* 지급완료 행 스타일 */
+.participant-row[data-status="paid"] {
+    background-color: #f0fdf4;
+}
+
+/* 업데이트 표시 */
+.update-notice {
+    font-size: 12px;
+}
+
+.update-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #10b981;
+    border-radius: 50%;
+    margin-left: 4px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .participants-section {
+        padding: 16px;
+    }
+    
+    .participants-table {
+        font-size: 13px;
+    }
+    
+    .participants-table th,
+    .participants-table td {
+        padding: 10px 8px;
+    }
+    
+    /* 모바일에서 일부 컬럼 숨기기 */
+    .participants-table th:nth-child(4),
+    .participants-table td:nth-child(4) {
+        display: none;
+    }
+    
+    .participant-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    
+    .participant-info small {
+        font-size: 11px;
+    }
+}
+</style>
+
+<script>
+// 실시간 업데이트 효과 (선택사항)
+setInterval(function() {
+    // 실제로는 AJAX로 새로운 데이터를 가져와서 업데이트
+    // 여기서는 시각적 효과만 구현
+    const dot = document.querySelector('.update-dot');
+    if(dot) {
+        dot.style.backgroundColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+    }
+}, 3000);
+
+// 새로운 참여자 하이라이트 (페이지 로드 시)
+document.addEventListener('DOMContentLoaded', function() {
+    const firstRow = document.querySelector('.participant-row');
+    if(firstRow) {
+        firstRow.classList.add('new-entry');
+    }
+});
+</script>
 <style>
 /* 페이지 헤더 */
 .event-page-header {

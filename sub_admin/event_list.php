@@ -4,6 +4,7 @@
  * 위치: /sub_admin/event_list.php
  * 기능: 하부조직 이벤트 관리
  * 작성일: 2025-01-11
+ * 수정일: 2025-01-23 (최고관리자 기능 추가)
  */
 
 define('_GNUBOARD_', true);
@@ -23,9 +24,9 @@ $stx = isset($_GET['stx']) ? $_GET['stx'] : '';
 
 $sql_search = " WHERE 1=1 ";
 
-// 담당자인 경우 자신이 관리하는 회원들의 이벤트 신청만 보기
+// 최고관리자는 모든 신청 내역을 보고, 일반 관리자는 하위 회원의 신청만 보기
 $managed_members = array();
-if($member['mb_grade'] < 10) { // 최고관리자가 아닌 경우
+if(!$is_admin) { // 최고관리자가 아닌 경우
     $managed_members = get_managed_members($member['mb_id']);
     if($managed_members && count($managed_members) > 0) {
         $sql_search .= " AND ea.mb_id IN ('".implode("','", $managed_members)."') ";
@@ -63,7 +64,7 @@ $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $from_record = ($page - 1) * $rows;
 
 // 이벤트 신청 목록
-$sql = "SELECT ea.*, m.mb_nick, m.mb_name, e.ev_subject, e.ev_coin_symbol, e.ev_coin_amount
+$sql = "SELECT ea.*, m.mb_nick, m.mb_name, m.mb_recommend, e.ev_subject, e.ev_coin_symbol, e.ev_coin_amount
         FROM g5_event_apply ea 
         LEFT JOIN g5_member m ON ea.mb_id = m.mb_id 
         LEFT JOIN g5_event e ON ea.ev_id = e.ev_id
@@ -83,7 +84,9 @@ $result = sql_query($sql);
             </div>
             <div class="ev-stat-content">
                 <div class="ev-stat-value"><?php echo number_format($total_count); ?></div>
-                <div class="ev-stat-label">전체 신청</div>
+                <div class="ev-stat-label">
+                    <?php echo $is_admin ? '전체 신청' : '하위 회원 신청'; ?>
+                </div>
             </div>
         </div>
         
@@ -93,7 +96,11 @@ $result = sql_query($sql);
             </div>
             <div class="ev-stat-content">
                 <?php
-                $cnt = sql_fetch("SELECT COUNT(*) as cnt FROM g5_event_apply ea WHERE ea.ea_status = 'applied' ".($managed_members ? "AND ea.mb_id IN ('".implode("','", $managed_members)."')" : "AND 1=0"));
+                if($is_admin) {
+                    $cnt = sql_fetch("SELECT COUNT(*) as cnt FROM g5_event_apply ea WHERE ea.ea_status = 'applied'");
+                } else {
+                    $cnt = sql_fetch("SELECT COUNT(*) as cnt FROM g5_event_apply ea WHERE ea.ea_status = 'applied' ".($managed_members ? "AND ea.mb_id IN ('".implode("','", $managed_members)."')" : "AND 1=0"));
+                }
                 ?>
                 <div class="ev-stat-value"><?php echo number_format($cnt['cnt']); ?></div>
                 <div class="ev-stat-label">대기중</div>
@@ -106,7 +113,11 @@ $result = sql_query($sql);
             </div>
             <div class="ev-stat-content">
                 <?php
-                $cnt = sql_fetch("SELECT COUNT(*) as cnt FROM g5_event_apply ea WHERE ea.ea_status = 'paid' ".($managed_members ? "AND ea.mb_id IN ('".implode("','", $managed_members)."')" : "AND 1=0"));
+                if($is_admin) {
+                    $cnt = sql_fetch("SELECT COUNT(*) as cnt FROM g5_event_apply ea WHERE ea.ea_status = 'paid'");
+                } else {
+                    $cnt = sql_fetch("SELECT COUNT(*) as cnt FROM g5_event_apply ea WHERE ea.ea_status = 'paid' ".($managed_members ? "AND ea.mb_id IN ('".implode("','", $managed_members)."')" : "AND 1=0"));
+                }
                 ?>
                 <div class="ev-stat-value"><?php echo number_format($cnt['cnt']); ?></div>
                 <div class="ev-stat-label">지급완료</div>
@@ -144,6 +155,9 @@ $result = sql_query($sql);
                         <option value="m.mb_nick" <?php echo $sfl == 'm.mb_nick' ? 'selected' : ''; ?>>닉네임</option>
                         <option value="m.mb_id" <?php echo $sfl == 'm.mb_id' ? 'selected' : ''; ?>>아이디</option>
                         <option value="e.ev_subject" <?php echo $sfl == 'e.ev_subject' ? 'selected' : ''; ?>>이벤트명</option>
+                        <?php if($is_admin) { ?>
+                        <option value="m.mb_recommend" <?php echo $sfl == 'm.mb_recommend' ? 'selected' : ''; ?>>추천인</option>
+                        <?php } ?>
                     </select>
                 </div>
                 
@@ -169,6 +183,9 @@ $result = sql_query($sql);
                     <th>상태</th>
                     <th>이벤트명</th>
                     <th>신청자</th>
+                    <?php if($is_admin) { ?>
+                    <th>추천인</th>
+                    <?php } ?>
                     <th>지갑주소</th>
                     <th>신청일시</th>
                     <th>관리</th>
@@ -198,8 +215,19 @@ $result = sql_query($sql);
                         <strong><?php echo $row['mb_nick']; ?></strong>
                         <span class="ev-text-muted">(<?php echo $row['mb_id']; ?>)</span>
                     </td>
+                    <?php if($is_admin) { ?>
+                    <td class="text-center">
+                        <?php if($row['mb_recommend']) { ?>
+                            <a href="./member_list.php?sfl=mb_id&stx=<?php echo $row['mb_recommend']; ?>" class="ev-link">
+                                <?php echo $row['mb_recommend']; ?>
+                            </a>
+                        <?php } else { ?>
+                            <span class="ev-text-muted">-</span>
+                        <?php } ?>
+                    </td>
+                    <?php } ?>
                     <td>
-                        <code class="ev-code"><?php echo $row['ea_wallet_address']; ?></code>
+                        <code class="ev-code"><?php echo substr($row['ea_wallet_address'], 0, 10); ?>...<?php echo substr($row['ea_wallet_address'], -8); ?></code>
                         <button class="ev-btn ev-btn-sm ev-btn-outline" onclick="copyToClipboard('<?php echo $row['ea_wallet_address']; ?>')">
                             <i class="bi bi-clipboard"></i>
                         </button>
@@ -227,7 +255,7 @@ $result = sql_query($sql);
                 
                 <?php if($total_count == 0) { ?>
                 <tr>
-                    <td colspan="7" class="text-center ev-empty">
+                    <td colspan="<?php echo $is_admin ? '8' : '7'; ?>" class="text-center ev-empty">
                         <i class="bi bi-inbox"></i>
                         <p>신청 내역이 없습니다.</p>
                     </td>
@@ -247,6 +275,50 @@ $result = sql_query($sql);
     </div>
     <?php } ?>
 </div>
+
+<!-- 최고관리자용 추가 정보 -->
+<?php if($is_admin) { ?>
+<div class="ev-admin-info">
+    <div class="ev-info-card">
+        <h4><i class="bi bi-info-circle"></i> 최고관리자 안내</h4>
+        <ul>
+            <li>모든 회원의 이벤트 신청 내역을 확인할 수 있습니다.</li>
+            <li>추천인별로 검색하여 특정 하부조직의 신청 현황을 확인할 수 있습니다.</li>
+            <li>지급 완료 처리 시 전광판에 자동으로 표시됩니다.</li>
+        </ul>
+    </div>
+</div>
+
+<style>
+.ev-admin-info {
+    margin-top: 30px;
+}
+
+.ev-info-card {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.ev-info-card h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e40af;
+    margin-bottom: 12px;
+}
+
+.ev-info-card ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.ev-info-card li {
+    color: #3b82f6;
+    margin-bottom: 8px;
+}
+</style>
+<?php } ?>
 
 <style>
 /* ===================================

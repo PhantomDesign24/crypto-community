@@ -153,124 +153,330 @@ $is_ongoing = ($now >= $start_time && $now <= $end_time && $event['ev_status'] =
             
             <!-- 오른쪽: 신청 폼 -->
             <div class="col-lg-4">
-                <div class="event-apply-card sticky-top">
-                    <!-- 코인 정보 -->
-                    <div class="coin-info-box">
-                        <h5 class="mb-3">에어드랍 정보</h5>
-                        <div class="coin-details">
-                            <div class="detail-row">
-                                <span class="label">코인명</span>
-                                <span class="value"><?php echo $event['ev_coin_name']; ?></span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="label">심볼</span>
-                                <span class="value fw-bold"><?php echo $event['ev_coin_symbol']; ?></span>
-                            </div>
-                            <div class="detail-row highlight">
-                                <span class="label">지급 수량</span>
-                                <span class="value text-success"><?php echo $event['ev_coin_amount']; ?></span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 남은 시간 -->
-                    <?php if($is_ongoing) { ?>
-                    <div class="time-remaining">
-                        <i class="bi bi-clock-history"></i>
-                        <span>마감까지 <strong><?php echo $remaining_days; ?>일</strong> 남음</span>
-                    </div>
-                    <?php } ?>
-                    
-                    <!-- 신청 폼 -->
-                    <?php if(!$member['mb_id']) { ?>
-                        <!-- 비회원 -->
-                        <div class="apply-login-required">
-                            <i class="bi bi-lock"></i>
-                            <p>이벤트 참여는 로그인 후 가능합니다.</p>
-                            <a href="<?php echo G5_BBS_URL; ?>/login.php?url=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>" 
-                               class="btn btn-primary w-100">
-                                로그인하기
-                            </a>
-                        </div>
-                    <?php } else if($is_applied) { ?>
-                        <!-- 이미 신청함 -->
-                        <div class="already-applied">
-                            <div class="applied-badge">
-                                <i class="bi bi-check-circle-fill"></i>
-                                <h5>신청 완료</h5>
-                            </div>
-                            <div class="applied-info">
-                                <p class="mb-2">신청일시: <?php echo date('Y.m.d H:i', strtotime($my_apply['ea_datetime'])); ?></p>
-                                <p class="mb-2">지갑주소: <code><?php echo $my_apply['ea_wallet_address']; ?></code></p>
-                                <p class="mb-0">상태: 
-                                    <?php if($my_apply['ea_status'] == 'paid') { ?>
-                                        <span class="badge bg-success">지급완료</span>
-                                    <?php } else { ?>
-                                        <span class="badge bg-warning">대기중</span>
-                                    <?php } ?>
-                                </p>
-                            </div>
-                        </div>
-                    <?php } else if($is_ongoing) { ?>
-                        <!-- 신청 가능 -->
-                        <form id="eventApplyForm" method="post" enctype="multipart/form-data">
-                            <input type="hidden" name="ev_id" value="<?php echo $ev_id; ?>">
-                            
-                            <h5 class="mb-3">이벤트 신청</h5>
-                            
-                            <!-- 지갑 주소 -->
-                            <div class="mb-3">
-                                <label class="form-label">
-                                    <i class="bi bi-wallet2"></i> 지갑 주소
-                                    <span class="text-danger">*</span>
-                                </label>
-                                <input type="text" name="wallet_address" class="form-control" 
-                                       placeholder="0x..." required>
-                                <small class="text-muted">
-                                    <?php echo $event['ev_coin_symbol']; ?> 코인을 받을 지갑 주소를 입력하세요.
-                                </small>
-                            </div>
-                            
-                            <!-- 파일 업로드 -->
-                            <div class="mb-3">
-                                <label class="form-label">
-                                    <i class="bi bi-image"></i> 인증 사진
-                                    <span class="text-muted">(최대 5개)</span>
-                                </label>
-                                <input type="file" name="bf_file[]" class="form-control" 
-                                       accept="image/*" multiple>
-                                <small class="text-muted">
-                                    이벤트 참여 인증 사진을 업로드하세요.
-                                </small>
-                            </div>
-                            
-                            <!-- 약관 동의 -->
-                            <div class="form-check mb-3">
-                                <input type="checkbox" class="form-check-input" id="agreeTerms" required>
-                                <label class="form-check-label" for="agreeTerms">
-                                    이벤트 참여 조건 및 개인정보 활용에 동의합니다.
-                                </label>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary btn-lg w-100">
-                                <i class="bi bi-send"></i> 이벤트 신청하기
-                            </button>
-                        </form>
-                    <?php } else { ?>
-                        <!-- 진행중이 아님 -->
-                        <div class="event-not-available">
-                            <i class="bi bi-x-circle"></i>
-                            <p>
-                                <?php if($event['ev_status'] == 'scheduled') { ?>
-                                    아직 시작되지 않은 이벤트입니다.
-                                <?php } else { ?>
-                                    종료된 이벤트입니다.
-                                <?php } ?>
-                            </p>
-                        </div>
-                    <?php } ?>
-                </div>
+<!-- 코인 정보 박스 부분을 다음으로 교체 -->
+<div class="airdrop-info-section">
+    <!-- 메인 에어드랍 정보 -->
+    <div class="airdrop-main-card">
+        <div class="airdrop-header">
+            <h5 class="airdrop-title">
+                <i class="bi bi-gift"></i> 에어드랍 리워드
+            </h5>
+            <?php if($event['ev_recommend']) { ?>
+            <span class="recommend-tag">
+                <i class="bi bi-star-fill"></i> HOT
+            </span>
+            <?php } ?>
+        </div>
+        
+        <div class="airdrop-amount-display">
+            <div class="coin-badge">
+                <span class="coin-symbol"><?php echo $event['ev_coin_symbol']; ?></span>
             </div>
+            <div class="amount-info">
+                <div class="amount-value">
+                    <?php echo number_format($event['ev_coin_amount']); ?>
+                    <span class="amount-unit"><?php echo $event['ev_coin_symbol']; ?></span>
+                </div>
+                <div class="coin-name"><?php echo $event['ev_coin_name']; ?></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 이벤트 정보 카드들 -->
+    <div class="event-info-grid">
+        <div class="info-item">
+            <i class="bi bi-calendar-check"></i>
+            <div class="info-detail">
+                <span class="info-label">시작일</span>
+                <span class="info-value"><?php echo date('Y.m.d', strtotime($event['ev_start_date'])); ?></span>
+            </div>
+        </div>
+        
+        <div class="info-item">
+            <i class="bi bi-calendar-x"></i>
+            <div class="info-detail">
+                <span class="info-label">종료일</span>
+                <span class="info-value"><?php echo date('Y.m.d', strtotime($event['ev_end_date'])); ?></span>
+            </div>
+        </div>
+        
+        <div class="info-item">
+            <i class="bi bi-people"></i>
+            <div class="info-detail">
+                <span class="info-label">참여자</span>
+                <span class="info-value"><?php echo number_format($event['ev_apply_count']); ?>명</span>
+            </div>
+        </div>
+        
+        <div class="info-item">
+            <i class="bi bi-shield-check"></i>
+            <div class="info-detail">
+                <span class="info-label">인증</span>
+                <span class="info-value">필수</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 남은 시간 표시 (진행중일 때만) -->
+    <?php if($is_ongoing) { ?>
+    <div class="time-status">
+        <div class="status-content">
+            <i class="bi bi-clock-history"></i>
+            <span class="status-text">
+                마감까지 <strong><?php echo $remaining_days; ?>일</strong> 남음
+            </span>
+        </div>
+        <div class="status-badge">진행중</div>
+    </div>
+    <?php } else if($event['ev_status'] == 'scheduled') { ?>
+    <div class="time-status scheduled">
+        <div class="status-content">
+            <i class="bi bi-hourglass-split"></i>
+            <span class="status-text">
+                <strong><?php echo abs($remaining_days); ?>일</strong> 후 시작
+            </span>
+        </div>
+        <div class="status-badge">예정</div>
+    </div>
+    <?php } else { ?>
+    <div class="time-status ended">
+        <div class="status-content">
+            <i class="bi bi-check-circle"></i>
+            <span class="status-text">이벤트가 종료되었습니다</span>
+        </div>
+        <div class="status-badge">종료</div>
+    </div>
+    <?php } ?>
+</div>
+
+<style>
+/* 에어드랍 정보 섹션 */
+.airdrop-info-section {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid #e5e7eb;
+}
+
+/* 메인 에어드랍 카드 */
+.airdrop-main-card {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.airdrop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.airdrop-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.airdrop-title i {
+    color: #3b82f6;
+}
+
+.recommend-tag {
+    background: #fef3c7;
+    color: #d97706;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 에어드랍 금액 표시 */
+.airdrop-amount-display {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.coin-badge {
+    width: 60px;
+    height: 60px;
+    background: #3b82f6;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.coin-symbol {
+    color: white;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.amount-info {
+    flex: 1;
+}
+
+.amount-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1f2937;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.amount-unit {
+    font-size: 20px;
+    color: #6b7280;
+    margin-left: 8px;
+}
+
+.coin-name {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* 이벤트 정보 그리드 */
+.event-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.info-item {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.info-item i {
+    font-size: 20px;
+    color: #6b7280;
+}
+
+.info-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.info-label {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.info-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* 시간 상태 표시 */
+.time-status {
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.time-status.scheduled {
+    background: #fef3c7;
+    border-color: #fde68a;
+}
+
+.time-status.ended {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+}
+
+.status-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #1e40af;
+}
+
+.time-status.scheduled .status-content {
+    color: #d97706;
+}
+
+.time-status.ended .status-content {
+    color: #6b7280;
+}
+
+.status-text {
+    font-size: 14px;
+}
+
+.status-text strong {
+    font-weight: 700;
+}
+
+.status-badge {
+    background: #3b82f6;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.time-status.scheduled .status-badge {
+    background: #f59e0b;
+}
+
+.time-status.ended .status-badge {
+    background: #6b7280;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .airdrop-info-section {
+        padding: 16px;
+    }
+    
+    .airdrop-main-card {
+        padding: 16px;
+    }
+    
+    .amount-value {
+        font-size: 24px;
+    }
+    
+    .coin-badge {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .coin-symbol {
+        font-size: 20px;
+    }
+    
+    .event-info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>            </div>
         </div>
     </div>
 </div>

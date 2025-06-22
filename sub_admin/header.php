@@ -4,21 +4,20 @@
  * 위치: /sub_admin/
  * 기능: 조직 관리 페이지 공통 헤더
  * 작성일: 2025-01-23
+ * 수정일: 2025-01-23 (최고관리자 기능 추가)
  */
-
 if (!defined('_GNUBOARD_')) exit; // 개별 페이지 접근 불가
 
 // ===================================
 // 공통 권한 체크
 // ===================================
-
 /* 로그인 체크 */
 if (!$member['mb_id']) {
     alert('로그인 후 이용하세요.', G5_BBS_URL.'/login.php');
 }
 
 /* 하부조직 권한 체크 (2등급 이상) */
-if ($member['mb_grade'] < 2) {
+if ($member['mb_grade'] < 2 && !$is_admin) {
     alert('접근 권한이 없습니다.', G5_URL);
 }
 
@@ -26,24 +25,48 @@ if ($member['mb_grade'] < 2) {
 // 하부조직 통계
 // ===================================
 
-/* 하위 회원 수 */
-$sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} WHERE mb_recommend = '{$member['mb_id']}'";
-$row = sql_fetch($sql);
-$total_members = $row['cnt'];
-
-/* 오늘 가입한 회원 수 */
-$sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} 
-        WHERE mb_recommend = '{$member['mb_id']}' 
-        AND DATE(mb_datetime) = CURDATE()";
-$row = sql_fetch($sql);
-$today_members = $row['cnt'];
+/* 최고관리자는 전체 통계, 일반 관리자는 하위 회원 통계 */
+if ($is_admin) {
+    /* 전체 회원 수 */
+    $sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']}";
+    $row = sql_fetch($sql);
+    $total_members = $row['cnt'];
+    
+    /* 오늘 가입한 전체 회원 수 */
+    $sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} 
+            WHERE DATE(mb_datetime) = CURDATE()";
+    $row = sql_fetch($sql);
+    $today_members = $row['cnt'];
+    
+    /* 전체 하부조직 관리자 수 (2등급 이상) */
+    $sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} WHERE mb_grade >= 2";
+    $row = sql_fetch($sql);
+    $total_managers = $row['cnt'];
+} else {
+    /* 하위 회원 수 */
+    $sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} WHERE mb_recommend = '{$member['mb_id']}'";
+    $row = sql_fetch($sql);
+    $total_members = $row['cnt'];
+    
+    /* 오늘 가입한 회원 수 */
+    $sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} 
+            WHERE mb_recommend = '{$member['mb_id']}' 
+            AND DATE(mb_datetime) = CURDATE()";
+    $row = sql_fetch($sql);
+    $today_members = $row['cnt'];
+    
+    /* 내 하위 회원 중 관리자 수 */
+    $sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} 
+            WHERE mb_recommend = '{$member['mb_id']}' AND mb_grade >= 2";
+    $row = sql_fetch($sql);
+    $total_managers = $row['cnt'];
+}
 
 /* 현재 페이지 확인 */
 $current_page = basename($_SERVER['PHP_SELF']);
 
 include_once(G5_PATH.'/head.sub.php');
 ?>
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -419,29 +442,33 @@ include_once(G5_PATH.'/head.sub.php');
             </div>
         </div>
         
-        <nav class="sa-sidebar-menu">
-            <a href="./index.php" class="sa-menu-item <?php echo ($current_page == 'index.php') ? 'active' : ''; ?>">
-                <i class="bi bi-speedometer2"></i> 대시보드
-            </a>
-            <a href="./member_list.php" class="sa-menu-item <?php echo ($current_page == 'member_list.php') ? 'active' : ''; ?>">
-                <i class="bi bi-people"></i> 회원 관리
-            </a>
-            <a href="./event_list.php" class="sa-menu-item <?php echo ($current_page == 'event_list.php') ? 'active' : ''; ?>">
-                <i class="bi bi-gift"></i> 이벤트 관리
-            </a>
-            <a href="./notice.php" class="sa-menu-item <?php echo ($current_page == 'notice.php') ? 'active' : ''; ?>">
-                <i class="bi bi-megaphone"></i> 공지사항
-            </a>
-            
-            <div style="border-top: 1px solid #374151; margin: 20px 0;"></div>
-            
+		<nav class="sa-sidebar-menu">
+			<a href="./index.php" class="sa-menu-item <?php echo ($current_page == 'index.php') ? 'active' : ''; ?>">
+				<i class="bi bi-speedometer2"></i> 대시보드
+			</a>
+			<a href="./member_list.php" class="sa-menu-item <?php echo ($current_page == 'member_list.php') ? 'active' : ''; ?>">
+				<i class="bi bi-people"></i> 회원 관리
+			</a>
+			<a href="./member_register.php" class="sa-menu-item <?php echo ($current_page == 'member_register.php') ? 'active' : ''; ?>">
+				<i class="bi bi-person-plus"></i> 회원 등록
+			</a>
+			<a href="./organization_tree.php" class="sa-menu-item <?php echo ($current_page == 'organization_tree.php') ? 'active' : ''; ?>">
+				<i class="bi bi-diagram-3"></i> 조직도
+			</a>
+			<a href="./event_list.php" class="sa-menu-item <?php echo ($current_page == 'event_list.php') ? 'active' : ''; ?>">
+				<i class="bi bi-gift"></i> 이벤트 관리
+			</a>
+			<a href="./sub_admin_notice.php" class="sa-menu-item <?php echo ($current_page == 'sub_admin_notice.php') ? 'active' : ''; ?>">
+				<i class="bi bi-megaphone"></i> 공지사항
+			</a>
+			<div style="border-top: 1px solid #374151; margin: 20px 0;"></div>
             <a href="<?php echo G5_URL; ?>" class="sa-menu-item">
                 <i class="bi bi-house"></i> 메인으로
             </a>
             <a href="<?php echo G5_BBS_URL; ?>/logout.php" class="sa-menu-item">
                 <i class="bi bi-box-arrow-right"></i> 로그아웃
             </a>
-        </nav>
+		</nav>
     </aside>
     
     <!-- 메인 콘텐츠 -->

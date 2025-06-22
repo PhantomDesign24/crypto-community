@@ -453,54 +453,6 @@ include_once(G5_PATH.'/head.php');
     to { transform: rotate(360deg); }
 }
 
-/* =================================== -->
-<!-- 전광판 스타일 -->
-<!-- =================================== -->
-/* 전광판 컨테이너 */
-.ticker-section {
-    background: var(--dark-bg);
-    padding: 20px 0;
-    overflow: hidden;
-    position: relative;
-}
-
-.ticker-title {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    background: var(--accent-color);
-    padding: 10px 20px;
-    border-radius: 0 25px 25px 0;
-    font-weight: 600;
-    color: white;
-    z-index: 10;
-}
-
-/* 전광판 콘텐츠 */
-.ticker-content {
-    display: flex;
-    animation: scroll-left 30s linear infinite;
-    padding-left: 200px;
-}
-
-.ticker-item {
-    color: white;
-    padding: 0 50px;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.ticker-item i {
-    color: var(--warning-color);
-}
-
-@keyframes scroll-left {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-}
 
 /* =================================== -->
 <!-- 섹션 공통 스타일 -->
@@ -949,7 +901,6 @@ include_once(G5_PATH.'/head.php');
     </div>
 </section>
 
-
 <!-- =================================== -->
 <!-- 코인 지급 현황 전광판 -->
 <!-- =================================== -->
@@ -957,45 +908,295 @@ include_once(G5_PATH.'/head.php');
     <div class="ticker-title">
         <i class="bi bi-megaphone"></i> 실시간 지급
     </div>
-	<div class="ticker-content">
-		<?php
-		// 전광판 데이터 읽기
-		$ticker_file = G5_DATA_PATH.'/cache/ticker_data.json';
-		$ticker_items = array();
-		
-		if(file_exists($ticker_file)) {
-			$json_data = file_get_contents($ticker_file);
-			$ticker_items = json_decode($json_data, true);
-		}
-		
-		// 데이터가 없으면 샘플 데이터 표시
-		if(empty($ticker_items)) {
-			$ticker_items = [
-				['name' => '김*수', 'amount' => '100 USDT', 'event' => '신규가입 이벤트'],
-				['name' => '이*희', 'amount' => '50 USDT', 'event' => '친구추천 이벤트'],
-				['name' => '박*철', 'amount' => '200 USDT', 'event' => '거래인증 이벤트'],
-				['name' => '최*영', 'amount' => '150 USDT', 'event' => '댓글 이벤트'],
-				['name' => '정*호', 'amount' => '80 USDT', 'event' => '출석체크 이벤트']
-			];
-		}
-		
-		// 2번 반복하여 끊김없는 스크롤 구현
-		for($i = 0; $i < 2; $i++) {
-			foreach($ticker_items as $item) {
-		?>
-		<span class="ticker-item">
-			<i class="bi bi-gift-fill"></i>
-			<?php echo $item['name']; ?>님 
-			<strong><?php echo $item['amount']; ?></strong> 
-			<?php echo $item['event']; ?> 지급완료
-		</span>
-		<?php 
-			}
-		}
-		?>
-	</div>
+    <div class="ticker-wrapper">
+        <div class="ticker-content" id="tickerContent">
+            <?php
+            // DB에서 최근 지급 내역 가져오기
+            $ticker_sql = "SELECT a.*, e.ev_subject, e.ev_coin_symbol, e.ev_coin_amount, m.mb_nick 
+                          FROM g5_event_apply a 
+                          JOIN g5_event e ON a.ev_id = e.ev_id 
+                          JOIN {$g5['member_table']} m ON a.mb_id = m.mb_id 
+                          WHERE a.ea_status = 'paid' 
+                          ORDER BY a.ea_pay_datetime DESC 
+                          LIMIT 20";
+            $ticker_result = sql_query($ticker_sql);
+            
+            $ticker_items = array();
+            while($row = sql_fetch_array($ticker_result)) {
+                // 닉네임 마스킹
+                $masked_nick = mb_substr($row['mb_nick'], 0, 1) . str_repeat('*', mb_strlen($row['mb_nick']) - 2) . mb_substr($row['mb_nick'], -1);
+                
+                $ticker_items[] = array(
+                    'name' => $masked_nick,
+                    'amount' => $row['ev_coin_amount'] . ' ' . $row['ev_coin_symbol'],
+                    'event' => $row['ev_subject'],
+                    'time' => $row['ea_pay_datetime']
+                );
+            }
+            
+            // 데이터가 없으면 샘플 표시
+            if(empty($ticker_items)) {
+                $ticker_items = [
+                    ['name' => '홍*동', 'amount' => '100 USDT', 'event' => '신규가입 이벤트', 'time' => date('Y-m-d H:i:s')],
+                    ['name' => '김*수', 'amount' => '50 BTC', 'event' => '친구추천 이벤트', 'time' => date('Y-m-d H:i:s')],
+                    ['name' => '이*희', 'amount' => '200 ETH', 'event' => '거래인증 이벤트', 'time' => date('Y-m-d H:i:s')]
+                ];
+            }
+            
+            // 항목 출력
+            foreach($ticker_items as $item) {
+            ?>
+            <span class="ticker-item" data-time="<?php echo $item['time']; ?>">
+                <i class="bi bi-check-circle-fill"></i>
+                <span class="ticker-name"><?php echo $item['name']; ?>님</span>
+                <span class="ticker-amount"><?php echo $item['amount']; ?></span>
+                <span class="ticker-event"><?php echo $item['event']; ?></span>
+                <span class="ticker-status">지급완료</span>
+            </span>
+            <?php 
+            }
+            ?>
+        </div>
+    </div>
 </div>
 
+<script>
+// 전광판 하이브리드 무한 스크롤 (최소 복사 + 마스킹)
+document.addEventListener('DOMContentLoaded', function() {
+    const tickerContent = document.getElementById('tickerContent');
+    const tickerWrapper = document.querySelector('.ticker-wrapper');
+    
+    if(tickerContent && tickerContent.children.length > 0) {
+        // 화면에 보일 정도의 항목만 복사 (3개)
+        const itemsToClone = Math.min(3, tickerContent.children.length);
+        const firstItems = [];
+        
+        // 처음 3개 항목 저장
+        for(let i = 0; i < itemsToClone; i++) {
+            firstItems.push(tickerContent.children[i].cloneNode(true));
+        }
+        
+        // 저장한 항목들을 끝에 추가
+        firstItems.forEach(item => {
+            tickerContent.appendChild(item);
+        });
+        
+        // 전체 너비 계산하여 애니메이션 속도 조정
+        let totalWidth = 0;
+        Array.from(tickerContent.children).forEach(item => {
+            totalWidth += item.offsetWidth;
+        });
+        
+        // 너비에 따른 애니메이션 시간 동적 설정 (픽셀당 0.02초)
+        const duration = Math.max(30, totalWidth * 0.02);
+        tickerContent.style.animationDuration = duration + 's';
+        
+        // 첫 번째 항목 하이라이트
+        const firstItem = tickerContent.querySelector('.ticker-item');
+        if(firstItem) {
+            firstItem.classList.add('new-item');
+            setTimeout(() => firstItem.classList.remove('new-item'), 3000);
+        }
+    }
+});
+</script>
+
+<style>
+/* 전광판 스타일 */
+.ticker-section {
+    background: #1a1a2e;
+    color: white;
+    overflow: hidden;
+    position: relative;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.ticker-title {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: #0f1729;
+    padding: 0 25px;
+    z-index: 10;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.ticker-title i {
+    color: #fbbf24;
+    font-size: 18px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+.ticker-wrapper {
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    margin-left: 150px;
+}
+
+/* 양쪽 끝 페이드 효과 (마스킹) */
+.ticker-wrapper::before,
+.ticker-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 60px;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.ticker-wrapper::before {
+    left: 0;
+    background: linear-gradient(to right, #1a1a2e 0%, transparent 100%);
+}
+
+.ticker-wrapper::after {
+    right: 0;
+    background: linear-gradient(to left, #1a1a2e 0%, transparent 100%);
+}
+
+.ticker-content {
+    display: flex;
+    white-space: nowrap;
+    animation: scroll-smooth 40s linear infinite;
+    align-items: center;
+    height: 100%;
+    padding-left: 60px; /* 왼쪽 페이드 영역만큼 패딩 */
+}
+
+@keyframes scroll-smooth {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        /* 원본 길이만큼 이동 (복사한 3개 항목 제외) */
+        transform: translateX(calc(-100% + 240px));
+    }
+}
+
+.ticker-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 40px;
+    font-size: 14px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ticker-item i {
+    color: #10b981;
+    font-size: 16px;
+}
+
+.ticker-name {
+    font-weight: 600;
+    color: #fbbf24;
+}
+
+.ticker-amount {
+    font-weight: 700;
+    color: #10b981;
+    font-size: 16px;
+}
+
+.ticker-event {
+    color: #94a3b8;
+}
+
+.ticker-status {
+    background: rgba(16, 185, 129, 0.1);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* 새 항목 애니메이션 */
+.ticker-item.new-item {
+    animation: highlight 3s ease;
+}
+
+@keyframes highlight {
+    0%, 100% { 
+        background: transparent; 
+    }
+    50% { 
+        background: rgba(251, 191, 36, 0.2);
+        border-radius: 8px;
+        transform: scale(1.05);
+    }
+}
+
+/* 호버 시 일시정지 */
+.ticker-wrapper:hover .ticker-content {
+    animation-play-state: paused;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .ticker-section {
+        height: 40px;
+    }
+    
+    .ticker-title {
+        padding: 0 15px;
+        font-size: 14px;
+    }
+    
+    .ticker-title i {
+        font-size: 16px;
+    }
+    
+    .ticker-wrapper {
+        margin-left: 120px;
+    }
+    
+    .ticker-wrapper::before,
+    .ticker-wrapper::after {
+        width: 30px;
+    }
+    
+    .ticker-content {
+        padding-left: 30px;
+    }
+    
+    .ticker-item {
+        padding: 0 20px;
+        font-size: 12px;
+    }
+    
+    .ticker-amount {
+        font-size: 14px;
+    }
+    
+    @keyframes scroll-smooth {
+        0% {
+            transform: translateX(0);
+        }
+        100% {
+            transform: translateX(calc(-100% + 180px));
+        }
+    }
+}
+</style>
 <!-- ===================================
      이벤트 섹션
      =================================== -->
