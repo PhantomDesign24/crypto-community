@@ -285,7 +285,47 @@ document.getElementById('backToTop').addEventListener('click', function(e) {
 
 <!-- Bootstrap JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- JSON-LD 구조화 데이터 -->
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "<?php echo $config['cf_title']; ?>",
+    "url": "<?php echo G5_URL; ?>",
+    "potentialAction": {
+        "@type": "SearchAction",
+        "target": "<?php echo G5_BBS_URL; ?>/search.php?stx={search_term_string}",
+        "query-input": "required name=search_term_string"
+    }
+}
+</script>
 
+<?php if ($seo_og_type == 'article' && isset($write['wr_datetime'])) { ?>
+<!-- Article 구조화 데이터 -->
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "<?php echo $seo_title; ?>",
+    "description": "<?php echo $seo_description; ?>",
+    "image": "<?php echo $seo_og_image; ?>",
+    "datePublished": "<?php echo date('c', strtotime($write['wr_datetime'])); ?>",
+    "dateModified": "<?php echo date('c', strtotime($write['wr_last'])); ?>",
+    "author": {
+        "@type": "Person",
+        "name": "<?php echo isset($write['wr_name']) ? $write['wr_name'] : ''; ?>"
+    },
+    "publisher": {
+        "@type": "Organization",
+        "name": "<?php echo $config['cf_title']; ?>",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "<?php echo G5_THEME_IMG_URL; ?>/logo.png"
+        }
+    }
+}
+</script>
+<?php } ?>
 <?php
 // 그누보드 필수 스크립트
 include_once(G5_PATH.'/tail.sub.php');

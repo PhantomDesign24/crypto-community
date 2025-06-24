@@ -263,6 +263,7 @@ include_once(G5_PATH.'/head.php');
     overflow: hidden;
     transition: all 0.3s;
     height: 100%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .listing-card:hover {
@@ -307,6 +308,48 @@ include_once(G5_PATH.'/head.php');
 
 .listing-content {
     padding: 20px;
+}
+
+.listing-content h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.listing-content .text-muted {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+    .listing-card {
+        margin-bottom: 15px;
+    }
+    
+    .listing-image {
+        height: 150px;
+    }
+    
+    .listing-content {
+        padding: 15px;
+    }
+    
+    .listing-content h5 {
+        font-size: 0.95rem;
+    }
+    
+    .exchange-badge {
+        padding: 3px 10px;
+        font-size: 0.75rem;
+        top: 10px;
+        left: 10px;
+    }
 }
 
 /* =================================== -->
@@ -355,20 +398,6 @@ include_once(G5_PATH.'/head.php');
     color: rgba(255,255,255,0.8) !important;
 }
 
-/* 이벤트 배지 애니메이션 */
-.event-badge {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: rgba(255,255,255,0.9);
-    color: var(--primary-color);
-    padding: 5px 15px;
-    border-radius: 20px;
-    font-size: 0.875rem;
-    font-weight: 700;
-    animation: badge-bounce 2s infinite;
-    text-transform: uppercase;
-}
 
 @keyframes badge-bounce {
     0%, 100% { transform: translateY(0); }
@@ -775,7 +804,15 @@ include_once(G5_PATH.'/head.php');
                 <div class="stat-icon blue">
                     <i class="bi bi-people-fill"></i>
                 </div>
-                <div class="stat-number">15,234</div>
+                <div class="stat-number">
+                    <?php
+                    // 전체 회원 수 + 3472명 추가
+                    $sql = "SELECT COUNT(*) as cnt FROM {$g5['member_table']} WHERE mb_leave_date = ''";
+                    $row = sql_fetch($sql);
+                    $total_members = $row['cnt'] + 3472;
+                    echo number_format($total_members);
+                    ?>
+                </div>
                 <div class="text-muted">활성 회원</div>
             </div>
         </div>
@@ -784,7 +821,14 @@ include_once(G5_PATH.'/head.php');
                 <div class="stat-icon green">
                     <i class="bi bi-currency-bitcoin"></i>
                 </div>
-                <div class="stat-number">456</div>
+                <div class="stat-number">
+                    <?php
+                    // 상장 정보 수
+                    $sql = "SELECT COUNT(*) as cnt FROM g5_listing_news";
+                    $row = sql_fetch($sql);
+                    echo number_format($row['cnt']);
+                    ?>
+                </div>
                 <div class="text-muted">상장 정보</div>
             </div>
         </div>
@@ -793,7 +837,14 @@ include_once(G5_PATH.'/head.php');
                 <div class="stat-icon purple">
                     <i class="bi bi-gift-fill"></i>
                 </div>
-                <div class="stat-number">28</div>
+                <div class="stat-number">
+                    <?php
+                    // 진행중 이벤트 수
+                    $sql = "SELECT COUNT(*) as cnt FROM g5_event WHERE ev_status = 'ongoing'";
+                    $row = sql_fetch($sql);
+                    echo number_format($row['cnt']);
+                    ?>
+                </div>
                 <div class="text-muted">진행중 이벤트</div>
             </div>
         </div>
@@ -802,13 +853,31 @@ include_once(G5_PATH.'/head.php');
                 <div class="stat-icon orange">
                     <i class="bi bi-cash-stack"></i>
                 </div>
-                <div class="stat-number">₩5.2억</div>
+                <div class="stat-number">
+                    <?php
+                    // 누적 에어드랍 금액 (예시: 포인트 총합을 원화로 환산)
+                    // 실제로는 에어드랍 관리 테이블에서 계산해야 함
+                    $sql = "SELECT SUM(po_point) as total FROM {$g5['point_table']} WHERE po_point > 0 AND po_rel_table = 'airdrop'";
+                    $row = sql_fetch($sql);
+                    $total_airdrop = $row['total'] ? $row['total'] : 0;
+                    
+                    // 금액 포맷팅
+                    if($total_airdrop >= 100000000) { // 1억 이상
+                        echo '₩' . number_format($total_airdrop / 100000000, 1) . '억';
+                    } else if($total_airdrop >= 10000000) { // 천만원 이상
+                        echo '₩' . number_format($total_airdrop / 10000000) . '천만';
+                    } else if($total_airdrop >= 10000) { // 만원 이상
+                        echo '₩' . number_format($total_airdrop / 10000) . '만';
+                    } else {
+                        echo '₩' . number_format($total_airdrop);
+                    }
+                    ?>
+                </div>
                 <div class="text-muted">누적 에어드랍</div>
             </div>
         </div>
     </div>
-</div>
-<!-- =================================== -->
+</div><!-- =================================== -->
 <!-- 실시간 코인 시세 섹션 -->
 <!-- =================================== -->
 <section class="section" style="background: #f8fafc;">
@@ -826,81 +895,680 @@ include_once(G5_PATH.'/head.php');
 </section>
 
 
-
 <!-- =================================== -->
 <!-- 신규 상장 소식 섹션 -->
 <!-- =================================== -->
-<section class="section">
+<section class="ln-section">
     <div class="container">
-        <div class="section-header">
-            <h2 class="section-title">최신 상장 소식</h2>
-            <p class="section-subtitle">국내 주요 거래소의 신규 상장 정보를 실시간으로</p>
+        <div class="ln-header">
+            <div class="ln-header-content">
+                <h2 class="ln-title">
+                    <span class="ln-title-icon">
+                        <i class="bi bi-rocket-takeoff-fill"></i>
+                    </span>
+                    최신 상장 소식
+                </h2>
+                <p class="ln-subtitle">실시간 업데이트되는 거래소 상장 정보</p>
+            </div>
+            <a href="<?php echo G5_URL ?>/listing_news.php" class="ln-view-all">
+                전체보기 <i class="bi bi-arrow-right"></i>
+            </a>
         </div>
         
-        <div class="row g-4">
+        <div class="ln-grid">
             <?php
-            // 샘플 데이터 (실제로는 게시판에서 가져옴)
-            $listings = [
-                [
-                    'title' => 'Arbitrum (ARB) 원화마켓 상장',
-                    'exchange' => 'upbit',
-                    'date' => '2025-01-11',
-                    'image' => 'https://placehold.co/400x200/093687/ffffff?text=ARB'
-                ],
-                [
-                    'title' => 'Blur (BLUR) KRW 마켓 오픈',
-                    'exchange' => 'bithumb',
-                    'date' => '2025-01-10',
-                    'image' => 'https://placehold.co/400x200/f89e1b/ffffff?text=BLUR'
-                ],
-                [
-                    'title' => 'Optimism (OP) 거래 지원',
-                    'exchange' => 'coinone',
-                    'date' => '2025-01-09',
-                    'image' => 'https://placehold.co/400x200/0066cc/ffffff?text=OP'
-                ],
-                [
-                    'title' => 'Celestia (TIA) 신규 상장',
-                    'exchange' => 'korbit',
-                    'date' => '2025-01-08',
-                    'image' => 'https://placehold.co/400x200/4b79d8/ffffff?text=TIA'
-                ]
-            ];
+            // g5_listing_news 테이블에서 최신 상장 정보 가져오기
+            $sql = "SELECT * FROM g5_listing_news 
+                    ORDER BY ln_date DESC, ln_id DESC 
+                    LIMIT 6";
+            $result = sql_query($sql);
             
-            foreach($listings as $item) {
-                $badge_class = 'badge-' . $item['exchange'];
-                $exchange_name = [
-                    'upbit' => '업비트',
-                    'bithumb' => '빗썸',
-                    'coinone' => '코인원',
-                    'korbit' => '코빗'
-                ][$item['exchange']];
+            // 거래소 정보
+            $exchanges = array(
+                'upbit' => array('name' => '업비트', 'color' => '#093687', 'bg' => 'rgba(9,54,135,0.1)'),
+                'bithumb' => array('name' => '빗썸', 'color' => '#f89e1b', 'bg' => 'rgba(248,158,27,0.1)'),
+                'coinone' => array('name' => '코인원', 'color' => '#0066cc', 'bg' => 'rgba(0,102,204,0.1)'),
+                'korbit' => array('name' => '코빗', 'color' => '#4b79d8', 'bg' => 'rgba(75,121,216,0.1)'),
+                'bybit' => array('name' => '바이비트', 'color' => '#FFD748', 'bg' => 'rgba(255,215,72,0.1)'),
+                'okx' => array('name' => 'OKX', 'color' => '#000000', 'bg' => 'rgba(0,0,0,0.1)')
+            );
+            
+            $count = 0;
+            while($row = sql_fetch_array($result)) {
+                $exchange_info = $exchanges[$row['ln_exchange']] ?? array(
+                    'name' => $row['ln_exchange'], 
+                    'color' => '#6b7280', 
+                    'bg' => 'rgba(107,114,128,0.1)'
+                );
+                
+                // 썸네일 이미지 처리
+                $thumb_url = '';
+                if($row['ln_logo'] && file_exists(G5_DATA_PATH.'/listing/'.$row['ln_logo'])) {
+                    $thumb_url = G5_DATA_URL.'/listing/'.$row['ln_logo'];
+                } else {
+                    // 심볼 첫 글자로 아이콘 생성
+                    $symbol_initial = substr($row['ln_symbol'], 0, 1);
+                }
+                
+                // 날짜 처리
+                $date = new DateTime($row['ln_date']);
+                $today = new DateTime();
+                $diff = $today->diff($date)->days;
+                
+                if($diff == 0) {
+                    $date_text = '오늘';
+                    $date_detail = $date->format('H:i');
+                } elseif($diff == 1) {
+                    $date_text = '어제';
+                    $date_detail = $date->format('H:i');
+                } elseif($diff < 7) {
+                    $date_text = $diff . '일 전';
+                    $date_detail = $date->format('m.d');
+                } else {
+                    $date_text = $date->format('m.d');
+                    $date_detail = $date->format('Y');
+                }
+                
+                $count++;
             ?>
-            <div class="col-lg-3 col-md-6">
-                <div class="listing-card">
-                    <div class="listing-image">
-                        <img src="<?php echo $item['image']; ?>" alt="<?php echo $item['title']; ?>">
-                        <span class="exchange-badge <?php echo $badge_class; ?>"><?php echo $exchange_name; ?></span>
+            <div class="ln-item" onclick="window.open('<?php echo $row['ln_notice_url'] ? $row['ln_notice_url'] : '#'; ?>', '_blank');">
+                <div class="ln-item-header">
+                    <div class="ln-exchange" style="background: <?php echo $exchange_info['bg']; ?>; color: <?php echo $exchange_info['color']; ?>">
+                        <?php echo $exchange_info['name']; ?>
                     </div>
-                    <div class="listing-content">
-                        <h5 class="mb-2"><?php echo $item['title']; ?></h5>
-                        <p class="text-muted mb-0">
-                            <i class="bi bi-calendar3"></i> <?php echo $item['date']; ?>
-                        </p>
+                    <div class="ln-date-wrap">
+                        <span class="ln-date"><?php echo $date_text; ?></span>
+                        <span class="ln-date-detail"><?php echo $date_detail; ?></span>
                     </div>
                 </div>
+                
+                <div class="ln-item-body">
+                    <div class="ln-coin-icon" style="background: <?php echo $exchange_info['color']; ?>">
+                        <?php if($thumb_url) { ?>
+                            <img src="<?php echo $thumb_url; ?>" alt="<?php echo $row['ln_symbol']; ?>">
+                        <?php } else { ?>
+                            <span><?php echo $symbol_initial ?? 'C'; ?></span>
+                        <?php } ?>
+                    </div>
+                    
+                    <div class="ln-coin-info">
+                        <h3 class="ln-coin-name"><?php echo $row['ln_name_kr']; ?></h3>
+                        <div class="ln-coin-meta">
+                            <span class="ln-symbol"><?php echo $row['ln_symbol']; ?></span>
+                            <?php if($row['ln_type']) { ?>
+                            <span class="ln-market"><?php echo $row['ln_type']; ?></span>
+                            <?php } ?>
+                        </div>
+                    </div>
+                </div>
+                
+                <?php if($diff <= 1) { ?>
+                <div class="ln-new-badge">
+                    <span class="ln-new-text">NEW</span>
+                    <span class="ln-new-dot"></span>
+                </div>
+                <?php } ?>
             </div>
-            <?php } ?>
-        </div>
-        
-        <div class="text-center mt-5">
-            <a href="<?php echo G5_BBS_URL ?>/board.php?bo_table=listing" class="btn-gradient">
-                더 많은 상장 소식 보기 <i class="bi bi-arrow-right"></i>
-            </a>
+            <?php 
+            }
+            
+            // 데이터가 부족한 경우 플레이스홀더
+            if($count < 6) {
+                // 랜덤 아이콘 배열 (Bootstrap Icons)
+                $random_icons = [
+                    'bi-currency-bitcoin',
+                    'bi-currency-exchange', 
+                    'bi-graph-up-arrow',
+                    'bi-lightning-charge-fill',
+                    'bi-star-fill',
+                    'bi-gem',
+                    'bi-trophy-fill',
+                    'bi-fire'
+                ];
+                $placeholder_exchanges = ['upbit', 'bithumb', 'coinone', 'korbit'];
+                
+                for($i = $count; $i < 6; $i++) {
+                    $random_exchange = $placeholder_exchanges[array_rand($placeholder_exchanges)];
+                    $exchange_info = $exchanges[$random_exchange];
+                    $random_icon = $random_icons[array_rand($random_icons)];
+            ?>
+            <div class="ln-item ln-placeholder">
+                <div class="ln-item-header">
+                    <div class="ln-exchange" style="background: <?php echo $exchange_info['bg']; ?>; color: <?php echo $exchange_info['color']; ?>">
+                        <?php echo $exchange_info['name']; ?>
+                    </div>
+                    <div class="ln-date-wrap">
+                        <span class="ln-date">곧 공개</span>
+                        <span class="ln-date-detail">-</span>
+                    </div>
+                </div>
+                <div class="ln-item-body">
+                    <div class="ln-coin-icon ln-placeholder-icon">
+                        <i class="<?php echo $random_icon; ?>"></i>
+                        <div class="ln-placeholder-pulse"></div>
+                    </div>
+                    <div class="ln-coin-info">
+                        <h3 class="ln-coin-name">상장 예정</h3>
+                        <div class="ln-coin-meta">
+                            <span class="ln-symbol">SOON</span>
+                            <span class="ln-market">준비중</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="ln-coming-badge">
+                    <i class="bi bi-clock"></i>
+                    <span>COMING</span>
+                </div>
+            </div>
+            <?php
+                }
+            }
+            ?>
         </div>
     </div>
 </section>
 
+<style>
+/* ===================================
+   섹션 기본 스타일
+   =================================== */
+.ln-section {
+    padding: 40px 0;
+    background: #f9fafb;
+}
+
+.ln-section .container {
+    max-width: 1200px;
+}
+
+/* ===================================
+   헤더 스타일
+   =================================== */
+.ln-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.ln-header-content {
+    flex: 1;
+}
+
+.ln-title {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ln-title-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    border-radius: 12px;
+    color: white;
+    font-size: 1.2rem;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.ln-subtitle {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+    color: #6b7280;
+    margin: 0;
+}
+
+.ln-view-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    background: #1f2937;
+    color: white;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.ln-view-all:hover {
+    background: #111827;
+    transform: translateX(-2px);
+    color: white;
+}
+
+.ln-view-all i {
+    transition: transform 0.3s;
+}
+
+.ln-view-all:hover i {
+    transform: translateX(3px);
+}
+
+/* ===================================
+   그리드 레이아웃
+   =================================== */
+.ln-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+@media (min-width: 992px) {
+    .ln-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+    .ln-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+}
+
+@media (max-width: 767px) {
+    .ln-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+}
+
+/* ===================================
+   아이템 카드 스타일
+   =================================== */
+.ln-item {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.ln-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    border-color: transparent;
+}
+
+.ln-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    transform: scaleX(0);
+    transition: transform 0.3s;
+}
+
+.ln-item:hover::before {
+    transform: scaleX(1);
+}
+
+/* 플레이스홀더 */
+.ln-placeholder {
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    border: 1px dashed #e5e7eb;
+}
+
+.ln-placeholder:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #e5e7eb;
+}
+
+.ln-placeholder::before {
+    display: none;
+}
+
+/* ===================================
+   아이템 헤더
+   =================================== */
+.ln-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.ln-exchange {
+    font-size: clamp(0.75rem, 2vw, 0.875rem);
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 12px;
+}
+
+.ln-date-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: clamp(0.75rem, 2vw, 0.875rem);
+}
+
+.ln-date {
+    color: #374151;
+    font-weight: 600;
+}
+
+.ln-date-detail {
+    color: #9ca3af;
+    font-weight: 400;
+}
+
+/* ===================================
+   아이템 바디
+   =================================== */
+.ln-item-body {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.ln-coin-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: white;
+    font-weight: 800;
+    font-size: 1.25rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.ln-coin-icon img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+}
+
+.ln-coin-icon span {
+    position: relative;
+    z-index: 1;
+}
+
+.ln-coin-icon::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+}
+
+.ln-coin-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ln-coin-name {
+    font-size: clamp(1rem, 3vw, 1.125rem);
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ln-coin-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ln-symbol {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+    font-weight: 600;
+    color: #4b5563;
+}
+
+.ln-market {
+    font-size: clamp(0.75rem, 2vw, 0.875rem);
+    color: #6b7280;
+    padding: 2px 8px;
+    background: #f3f4f6;
+    border-radius: 8px;
+}
+
+/* ===================================
+   NEW 배지
+   =================================== */
+.ln-new-badge {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ln-new-text {
+    background: #ef4444;
+    color: white;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.05em;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+.ln-new-dot {
+    width: 6px;
+    height: 6px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: blink 1.5s infinite;
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* ===================================
+   COMING 배지
+   =================================== */
+.ln-coming-badge {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+    font-size: 0.625rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 10px;
+    letter-spacing: 0.05em;
+    backdrop-filter: blur(4px);
+}
+
+.ln-coming-badge i {
+    font-size: 0.75rem;
+}
+
+/* ===================================
+   플레이스홀더 스타일
+   =================================== */
+.ln-placeholder-icon {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%) !important;
+    position: relative;
+    overflow: visible;
+}
+
+.ln-placeholder-icon i {
+    font-size: 1.5rem;
+    color: #9ca3af;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+
+.ln-placeholder-pulse {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.5);
+    animation: pulse-ring 2s infinite;
+}
+
+@keyframes pulse-ring {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.5;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.3);
+        opacity: 0;
+    }
+}
+
+/* ===================================
+   모바일 반응형
+   =================================== */
+@media (max-width: 768px) {
+    .ln-section {
+        padding: 30px 0;
+    }
+    
+    .ln-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .ln-view-all {
+        align-self: flex-end;
+        padding: 6px 16px;
+        font-size: 0.8125rem;
+    }
+    
+    .ln-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .ln-item {
+        padding: 16px;
+    }
+    
+    .ln-item-header {
+        margin-bottom: 12px;
+    }
+    
+    .ln-coin-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .ln-new-badge {
+        bottom: 12px;
+        right: 12px;
+		display:none;
+
+    }
+    
+    .ln-new-text {
+        padding: 2px 6px;
+        font-size: 0.5625rem;
+		display:none;
+    }
+    
+    .ln-new-dot {
+        width: 4px;
+        height: 4px;
+		display:none;
+    }
+    
+    .ln-coming-badge {
+        bottom: 12px;
+        right: 12px;
+        padding: 3px 8px;
+        font-size: 0.5625rem;
+		display:none;
+    }
+    
+    .ln-date-wrap {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+		line-height:1;
+    }
+    
+    .ln-date-detail {
+        font-size: 0.625rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .ln-section {
+        padding: 20px 0;
+    }
+    
+    .ln-grid {
+        gap: 10px;
+    }
+    
+    .ln-item {
+        padding: 14px;
+    }
+    
+    .ln-item-body {
+        gap: 12px;
+    }
+    
+    .ln-coin-meta {
+        gap: 6px;
+    }
+    
+    .ln-market {
+        padding: 1px 6px;
+    }
+}
+
+/* 작은 화면에서 1열 */
+@media (max-width: 360px) {
+    .ln-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 <!-- =================================== -->
 <!-- 코인 지급 현황 전광판 -->
 <!-- =================================== -->
@@ -943,7 +1611,7 @@ include_once(G5_PATH.'/head.php');
                 ];
             }
             
-            // 항목 출력
+            // 항목 출력 (중복 제거)
             foreach($ticker_items as $item) {
             ?>
             <span class="ticker-item" data-time="<?php echo $item['time']; ?>">
@@ -960,43 +1628,14 @@ include_once(G5_PATH.'/head.php');
     </div>
 </div>
 
+<!-- AJAX 업데이트 스크립트 제거 - 페이지 새로고침 시에만 업데이트 -->
 <script>
-// 전광판 하이브리드 무한 스크롤 (최소 복사 + 마스킹)
+// 전광판 애니메이션만 유지
 document.addEventListener('DOMContentLoaded', function() {
-    const tickerContent = document.getElementById('tickerContent');
-    const tickerWrapper = document.querySelector('.ticker-wrapper');
-    
-    if(tickerContent && tickerContent.children.length > 0) {
-        // 화면에 보일 정도의 항목만 복사 (3개)
-        const itemsToClone = Math.min(3, tickerContent.children.length);
-        const firstItems = [];
-        
-        // 처음 3개 항목 저장
-        for(let i = 0; i < itemsToClone; i++) {
-            firstItems.push(tickerContent.children[i].cloneNode(true));
-        }
-        
-        // 저장한 항목들을 끝에 추가
-        firstItems.forEach(item => {
-            tickerContent.appendChild(item);
-        });
-        
-        // 전체 너비 계산하여 애니메이션 속도 조정
-        let totalWidth = 0;
-        Array.from(tickerContent.children).forEach(item => {
-            totalWidth += item.offsetWidth;
-        });
-        
-        // 너비에 따른 애니메이션 시간 동적 설정 (픽셀당 0.02초)
-        const duration = Math.max(30, totalWidth * 0.02);
-        tickerContent.style.animationDuration = duration + 's';
-        
-        // 첫 번째 항목 하이라이트
-        const firstItem = tickerContent.querySelector('.ticker-item');
-        if(firstItem) {
-            firstItem.classList.add('new-item');
-            setTimeout(() => firstItem.classList.remove('new-item'), 3000);
-        }
+    // 새 항목 하이라이트 효과 (선택사항)
+    const firstItems = document.querySelectorAll('.ticker-item');
+    if(firstItems.length > 0) {
+        firstItems[0].classList.add('new-item');
     }
 });
 </script>
@@ -1027,77 +1666,45 @@ document.addEventListener('DOMContentLoaded', function() {
     align-items: center;
     gap: 8px;
     white-space: nowrap;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
 }
 
 .ticker-title i {
     color: #fbbf24;
     font-size: 18px;
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.1); opacity: 0.8; }
 }
 
 .ticker-wrapper {
     overflow: hidden;
     position: relative;
-    width: 100%;
-    height: 100%;
-    margin-left: 150px;
-}
-
-/* 양쪽 끝 페이드 효과 (마스킹) */
-.ticker-wrapper::before,
-.ticker-wrapper::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 60px;
-    z-index: 5;
-    pointer-events: none;
-}
-
-.ticker-wrapper::before {
-    left: 0;
-    background: linear-gradient(to right, #1a1a2e 0%, transparent 100%);
-}
-
-.ticker-wrapper::after {
-    right: 0;
-    background: linear-gradient(to left, #1a1a2e 0%, transparent 100%);
+    flex: 1;
+    margin-left: 150px; /* ticker-title 너비 */
 }
 
 .ticker-content {
     display: flex;
     white-space: nowrap;
-    animation: scroll-smooth 40s linear infinite;
-    align-items: center;
-    height: 100%;
-    padding-left: 60px; /* 왼쪽 페이드 영역만큼 패딩 */
+    animation: scroll-left 30s linear infinite;
 }
 
-@keyframes scroll-smooth {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        /* 원본 길이만큼 이동 (복사한 3개 항목 제외) */
-        transform: translateX(calc(-100% + 240px));
-    }
+/* 무한 스크롤을 위한 복제 */
+.ticker-content::after {
+    content: attr(data-content);
+    position: absolute;
+    left: 100%;
+}
+
+@keyframes scroll-left {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
 }
 
 .ticker-item {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 0 40px;
+    padding: 0 30px;
     font-size: 14px;
-    white-space: nowrap;
-    flex-shrink: 0;
+    height: 50px;
 }
 
 .ticker-item i {
@@ -1129,26 +1736,6 @@ document.addEventListener('DOMContentLoaded', function() {
     border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
-/* 새 항목 애니메이션 */
-.ticker-item.new-item {
-    animation: highlight 3s ease;
-}
-
-@keyframes highlight {
-    0%, 100% { 
-        background: transparent; 
-    }
-    50% { 
-        background: rgba(251, 191, 36, 0.2);
-        border-radius: 8px;
-        transform: scale(1.05);
-    }
-}
-
-/* 호버 시 일시정지 */
-.ticker-wrapper:hover .ticker-content {
-    animation-play-state: paused;
-}
 
 /* 반응형 */
 @media (max-width: 768px) {
@@ -1169,346 +1756,815 @@ document.addEventListener('DOMContentLoaded', function() {
         margin-left: 120px;
     }
     
-    .ticker-wrapper::before,
-    .ticker-wrapper::after {
-        width: 30px;
-    }
-    
-    .ticker-content {
-        padding-left: 30px;
-    }
-    
     .ticker-item {
         padding: 0 20px;
         font-size: 12px;
+        height: 40px;
     }
     
     .ticker-amount {
         font-size: 14px;
-    }
-    
-    @keyframes scroll-smooth {
-        0% {
-            transform: translateX(0);
-        }
-        100% {
-            transform: translateX(calc(-100% + 180px));
-        }
     }
 }
 </style>
 <!-- ===================================
      이벤트 섹션
      =================================== -->
-<section class="events-section" style="padding: 80px 0; background: #f8f9fa;">
+<section class="ev-section">
     <div class="container">
-        <div class="text-center mb-5">
-            <h2 class="h1 fw-bold mb-3">
-                <i class="bi bi-gift-fill text-primary"></i>
-                에어드랍 이벤트
-            </h2>
-            <p class="lead text-muted">다양한 코인 에어드랍 이벤트에 참여하세요</p>
+        <div class="ev-header">
+            <div class="ev-header-content">
+                <h2 class="ev-title">
+                    <span class="ev-title-icon">
+                        <i class="bi bi-gift-fill"></i>
+                    </span>
+                    에어드랍 이벤트
+                </h2>
+                <p class="ev-subtitle">참여만 해도 코인을 받을 수 있는 다양한 이벤트</p>
+            </div>
+            <a href="<?php echo G5_URL; ?>/event.php" class="ev-view-all">
+                전체 이벤트 <i class="bi bi-arrow-right"></i>
+            </a>
         </div>
         
         <!-- 이벤트 탭 -->
-        <ul class="nav nav-pills justify-content-center mb-5" id="eventTabs">
-            <li class="nav-item">
-                <a class="nav-link active" data-status="ongoing" href="#ongoing">
-                    <i class="bi bi-play-circle"></i> 진행중
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" data-status="scheduled" href="#scheduled">
-                    <i class="bi bi-clock"></i> 진행예정
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" data-status="ended" href="#ended">
-                    <i class="bi bi-check-circle"></i> 진행종료
-                </a>
-            </li>
-        </ul>
-        
-        <!-- 이벤트 그리드 -->
-        <div class="event-grid" id="eventGrid">
+        <div class="ev-tabs" id="eventTabs">
             <?php
-            // 추천 이벤트 가져오기
-            $sql = "SELECT * FROM g5_event 
-                    WHERE ev_recommend = 1 
-                    AND ev_status = 'ongoing'
-                    ORDER BY ev_id DESC 
-                    LIMIT 6";
-            $result = sql_query($sql);
-            
-            while($row = sql_fetch_array($result)) {
-                $remaining_days = floor((strtotime($row['ev_end_date']) - time()) / 86400);
+            // 각 상태별 이벤트 개수 조회
+            $count_ongoing = sql_fetch("SELECT COUNT(*) as cnt FROM g5_event WHERE ev_status = 'ongoing'")['cnt'];
+            $count_scheduled = sql_fetch("SELECT COUNT(*) as cnt FROM g5_event WHERE ev_status = 'scheduled'")['cnt'];
+            $count_ended = sql_fetch("SELECT COUNT(*) as cnt FROM g5_event WHERE ev_status = 'ended'")['cnt'];
             ?>
-            <div class="event-card" data-event-id="<?php echo $row['ev_id']; ?>">
-                <div class="event-card-inner">
-                    <!-- 상태 배지 -->
-                    <div class="event-badge">
-                        <?php if($row['ev_status'] == 'ongoing') { ?>
-                            <span class="badge bg-success">진행중</span>
-                        <?php } else if($row['ev_status'] == 'scheduled') { ?>
-                            <span class="badge bg-info">진행예정</span>
-                        <?php } else { ?>
-                            <span class="badge bg-secondary">종료</span>
-                        <?php } ?>
-                    </div>
-                    
-                    <!-- 이벤트 이미지 -->
-                    <div class="event-image">
-                        <?php if($row['ev_image']) { ?>
-                            <img src="<?php echo G5_DATA_URL; ?>/event/<?php echo $row['ev_image']; ?>" alt="<?php echo $row['ev_subject']; ?>">
-                        <?php } else { ?>
-                            <div class="event-no-image">
-                                <i class="bi bi-gift"></i>
-                            </div>
-                        <?php } ?>
-                    </div>
-                    
-                    <!-- 이벤트 내용 -->
-                    <div class="event-content">
-                        <div class="event-coin-info">
-                            <span class="coin-symbol"><?php echo $row['ev_coin_symbol']; ?></span>
-                            <span class="coin-amount"><?php echo $row['ev_coin_amount']; ?></span>
-                        </div>
-                        <h4 class="event-title"><?php echo $row['ev_subject']; ?></h4>
-                        <p class="event-summary"><?php echo $row['ev_summary']; ?></p>
-                        
-                        <div class="event-meta">
-                            <div class="meta-item">
-                                <i class="bi bi-calendar-event"></i>
-                                <span>D-<?php echo $remaining_days; ?></span>
-                            </div>
-                            <div class="meta-item">
-                                <i class="bi bi-people"></i>
-                                <span><?php echo number_format($row['ev_apply_count']); ?>명 참여</span>
-                            </div>
-                        </div>
-                        
-                        <button class="btn btn-primary btn-sm w-100 mt-3" onclick="viewEvent(<?php echo $row['ev_id']; ?>)">
-                            <i class="bi bi-arrow-right-circle"></i> 참여하기
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <?php } ?>
+            <button class="ev-tab active" data-status="ongoing">
+                <i class="bi bi-lightning-charge-fill"></i>
+                <span>진행중</span>
+                <span class="ev-tab-count"><?php echo $count_ongoing; ?></span>
+            </button>
+            <button class="ev-tab" data-status="scheduled">
+                <i class="bi bi-hourglass-split"></i>
+                <span>예정</span>
+                <span class="ev-tab-count"><?php echo $count_scheduled; ?></span>
+            </button>
+            <button class="ev-tab" data-status="ended">
+                <i class="bi bi-check-circle"></i>
+                <span>종료</span>
+                <span class="ev-tab-count"><?php echo $count_ended; ?></span>
+            </button>
         </div>
         
-        <!-- 더보기 버튼 -->
-        <div class="text-center mt-5">
-            <a href="<?php echo G5_URL; ?>/event.php" class="btn btn-outline-primary btn-lg">
-                <i class="bi bi-grid-3x3-gap"></i> 모든 이벤트 보기
-            </a>
+        <!-- 이벤트 그리드 -->
+        <div class="ev-grid" id="eventGrid">
+            <?php
+            // 모든 이벤트 가져오기 (진행중, 예정, 종료 모두)
+            $sql = "SELECT * FROM g5_event 
+                    WHERE ev_recommend = 1 
+                    ORDER BY 
+                        CASE 
+                            WHEN ev_status = 'ongoing' THEN 1
+                            WHEN ev_status = 'scheduled' THEN 2
+                            ELSE 3
+                        END,
+                        ev_id DESC 
+                    LIMIT 9";
+            $result = sql_query($sql);
+            
+            $event_count = 0;
+            while($row = sql_fetch_array($result)) {
+                $remaining_days = floor((strtotime($row['ev_end_date']) - time()) / 86400);
+                $event_count++;
+                
+                // 이벤트 타입별 색상
+                $type_colors = [
+                    'hot' => ['bg' => '#ef4444', 'light' => 'rgba(239,68,68,0.1)'],
+                    'new' => ['bg' => '#3b82f6', 'light' => 'rgba(59,130,246,0.1)'],
+                    'special' => ['bg' => '#8b5cf6', 'light' => 'rgba(139,92,246,0.1)']
+                ];
+                
+                // 랜덤 타입 지정 (실제로는 DB에서 가져옴)
+                $event_types = array_keys($type_colors);
+                $event_type = $event_types[array_rand($event_types)];
+                $colors = $type_colors[$event_type];
+                
+                // 진행중인 이벤트만 기본적으로 표시
+                $display_style = ($row['ev_status'] == 'ongoing') ? 'block' : 'none';
+            ?>
+            <div class="ev-card" data-event-id="<?php echo $row['ev_id']; ?>" data-status="<?php echo $row['ev_status']; ?>" style="display: <?php echo $display_style; ?>">
+                <!-- 이벤트 이미지 -->
+                <?php if($row['ev_image']) { ?>
+                <div class="ev-card-image">
+                    <img src="<?php echo G5_DATA_URL; ?>/event/<?php echo $row['ev_image']; ?>" alt="<?php echo $row['ev_subject']; ?>">
+                    <!-- 이벤트 헤더 오버레이 -->
+                    <div class="ev-card-header-overlay">
+                        <div class="ev-status <?php echo $row['ev_status']; ?>">
+                            <?php if($row['ev_status'] == 'ongoing') { ?>
+                                <i class="bi bi-circle-fill"></i> 진행중
+                            <?php } else if($row['ev_status'] == 'scheduled') { ?>
+                                <i class="bi bi-clock-fill"></i> 예정
+                            <?php } else { ?>
+                                <i class="bi bi-check-circle-fill"></i> 종료
+                            <?php } ?>
+                        </div>
+                        <?php if($remaining_days <= 3 && $row['ev_status'] == 'ongoing') { ?>
+                        <div class="ev-urgent">
+                            <i class="bi bi-fire"></i> 곧 종료
+                        </div>
+                        <?php } ?>
+                    </div>
+                </div>
+                <?php } else { ?>
+                <!-- 이벤트 헤더 (이미지 없을 때) -->
+                <div class="ev-card-header">
+                    <div class="ev-status <?php echo $row['ev_status']; ?>">
+                        <?php if($row['ev_status'] == 'ongoing') { ?>
+                            <i class="bi bi-circle-fill"></i> 진행중
+                        <?php } else if($row['ev_status'] == 'scheduled') { ?>
+                            <i class="bi bi-clock-fill"></i> 예정
+                        <?php } else { ?>
+                            <i class="bi bi-check-circle-fill"></i> 종료
+                        <?php } ?>
+                    </div>
+                    <?php if($remaining_days <= 3 && $row['ev_status'] == 'ongoing') { ?>
+                    <div class="ev-urgent">
+                        <i class="bi bi-fire"></i> 곧 종료
+                    </div>
+                    <?php } ?>
+                </div>
+                <?php } ?>
+                
+                <!-- 코인 정보 -->
+                <div class="ev-coin-info" style="background: <?php echo $colors['light']; ?>">
+                    <div class="ev-coin-icon" style="background: <?php echo $colors['bg']; ?>">
+                        <?php if($row['ev_coin_logo']) { ?>
+                            <img src="<?php echo G5_DATA_URL; ?>/event/<?php echo $row['ev_coin_logo']; ?>" alt="">
+                        <?php } else { ?>
+                            <span><?php echo substr($row['ev_coin_symbol'], 0, 1); ?></span>
+                        <?php } ?>
+                    </div>
+                    <div class="ev-coin-details">
+                        <span class="ev-coin-symbol"><?php echo $row['ev_coin_symbol']; ?></span>
+                        <span class="ev-coin-amount"><?php echo $row['ev_coin_amount']; ?></span>
+                    </div>
+                </div>
+                
+                <!-- 이벤트 내용 -->
+                <div class="ev-card-body">
+                    <h4 class="ev-card-title"><?php echo $row['ev_subject']; ?></h4>
+                    <p class="ev-card-desc"><?php echo $row['ev_summary']; ?></p>
+                    
+                    <!-- 진행 정보 -->
+                    <div class="ev-progress-info">
+                        <div class="ev-progress-text">
+                            <span class="ev-participants">
+                                <i class="bi bi-people-fill"></i> 
+                                <?php echo number_format($row['ev_apply_count'] ?: 0); ?>명 참여중
+                            </span>
+                            <span class="ev-deadline">
+                                <?php if($remaining_days > 0) { ?>
+                                    D-<?php echo $remaining_days; ?>
+                                <?php } else if($remaining_days == 0) { ?>
+                                    <span class="text-danger">오늘 마감</span>
+                                <?php } else { ?>
+                                    종료됨
+                                <?php } ?>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 참여 버튼 -->
+                <button class="ev-card-action" onclick="viewEvent(<?php echo $row['ev_id']; ?>)">
+                    <span>지금 참여하기</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+            <?php 
+            }
+            
+            // 데이터가 부족한 경우 플레이스홀더
+            if($event_count < 6) {
+                for($i = $event_count; $i < 6; $i++) {
+            ?>
+            <div class="ev-card ev-placeholder" data-status="scheduled" style="display: none;">
+                <!-- 플레이스홀더 이미지 영역 -->
+                <div class="ev-card-image ev-placeholder-image">
+                    <div class="ev-placeholder-icon-wrapper">
+                        <i class="bi bi-image"></i>
+                    </div>
+                    <div class="ev-card-header-overlay">
+                        <div class="ev-status scheduled">
+                            <i class="bi bi-hourglass"></i> 준비중
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ev-coin-info">
+                    <div class="ev-coin-icon ev-placeholder-icon">
+                        <i class="bi bi-question-lg"></i>
+                    </div>
+                    <div class="ev-coin-details">
+                        <span class="ev-coin-symbol">SOON</span>
+                        <span class="ev-coin-amount">???</span>
+                    </div>
+                </div>
+                
+                <div class="ev-card-body">
+                    <h4 class="ev-card-title">새로운 이벤트 준비중</h4>
+                    <p class="ev-card-desc">곧 만나보실 수 있습니다</p>
+                    
+                    <div class="ev-coming-soon">
+                        <i class="bi bi-bell"></i>
+                        <span>알림 신청하고 놓치지 마세요!</span>
+                    </div>
+                </div>
+                
+                <button class="ev-card-action" disabled>
+                    <span>Coming Soon</span>
+                </button>
+            </div>
+            <?php
+                }
+            }
+            ?>
         </div>
     </div>
 </section>
 
 <style>
-/* 이벤트 섹션 스타일 */
-.events-section {
-    position: relative;
-    overflow: hidden;
+/* ===================================
+   섹션 기본 스타일
+   =================================== */
+.ev-section {
+    padding: 60px 0;
+    background: #ffffff;
 }
 
-/* 이벤트 탭 */
-.nav-pills .nav-link {
+/* ===================================
+   헤더 스타일
+   =================================== */
+.ev-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+}
+
+.ev-header-content {
+    flex: 1;
+}
+
+.ev-title {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ev-title-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+    border-radius: 12px;
+    color: white;
+    font-size: 1.2rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.ev-subtitle {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
     color: #6b7280;
-    background: white;
-    border: 1px solid #e5e7eb;
-    margin: 0 5px;
-    padding: 10px 24px;
-    border-radius: 30px;
+    margin: 0;
+}
+
+.ev-view-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 20px;
+    background: #1f2937;
+    color: white;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 0.875rem;
     font-weight: 500;
     transition: all 0.3s;
 }
 
-.nav-pills .nav-link:hover {
-    background: #f3f4f6;
-}
-
-.nav-pills .nav-link.active {
-    background: #3b82f6;
-    border-color: #3b82f6;
+.ev-view-all:hover {
+    background: #111827;
+    transform: translateX(-2px);
     color: white;
 }
 
-/* 이벤트 그리드 */
-.event-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 30px;
-}
-
-/* 이벤트 카드 */
-.event-card {
-    position: relative;
-    cursor: pointer;
-}
-
-.event-card-inner {
-    background: white;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s;
-    height: 100%;
-}
-
-.event-card:hover .event-card-inner {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-}
-
-/* 상태 배지 */
-.event-badge {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    z-index: 10;
-}
-
-/* 이벤트 이미지 */
-.event-image {
-    width: 100%;
-    height: 200px;
-    background: #f3f4f6;
+/* ===================================
+   탭 스타일
+   =================================== */
+.ev-tabs {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    gap: 12px;
+    margin-bottom: 30px;
+    padding: 6px;
+    background: #f3f4f6;
+    border-radius: 12px;
+    width: fit-content;
 }
 
-.event-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.event-no-image {
-    font-size: 60px;
-    color: #d1d5db;
-}
-
-/* 이벤트 내용 */
-.event-content {
-    padding: 24px;
-}
-
-.event-coin-info {
+.ev-tab {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 12px;
-}
-
-.coin-symbol {
-    background: #eff6ff;
-    color: #3b82f6;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 14px;
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
     font-weight: 600;
-}
-
-.coin-amount {
-    color: #16a34a;
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.event-title {
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #1f2937;
-    line-height: 1.4;
-}
-
-.event-summary {
-    font-size: 14px;
     color: #6b7280;
-    margin-bottom: 16px;
-    line-height: 1.5;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.ev-tab:hover {
+    color: #374151;
+}
+
+.ev-tab.active {
+    background: white;
+    color: #1f2937;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.ev-tab i {
+    font-size: 1rem;
+}
+
+.ev-tab-count {
+    background: rgba(0,0,0,0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+}
+
+.ev-tab.active .ev-tab-count {
+    background: #3b82f6;
+    color: white;
+}
+
+/* ===================================
+   그리드 레이아웃
+   =================================== */
+.ev-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+}
+
+@media (min-width: 992px) {
+    .ev-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ===================================
+   이벤트 카드
+   =================================== */
+.ev-card {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+}
+
+.ev-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    border-color: transparent;
+}
+
+/* 카드 이미지 */
+.ev-card-image {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+    background: #f3f4f6;
+}
+
+.ev-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.ev-card:hover .ev-card-image img {
+    transform: scale(1.05);
+}
+
+/* 카드 헤더 오버레이 (이미지 위) */
+.ev-card-header-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
+}
+
+.ev-card-header-overlay .ev-status,
+.ev-card-header-overlay .ev-urgent {
+    backdrop-filter: blur(8px);
+    background: rgba(255,255,255,0.9);
+}
+
+/* 카드 헤더 (이미지 없을 때) */
+.ev-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.ev-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 8px;
+}
+
+.ev-status i {
+    font-size: 0.5rem;
+}
+
+.ev-status.ongoing {
+    color: #16a34a;
+}
+
+.ev-status.scheduled {
+    color: #3b82f6;
+}
+
+.ev-status.ended {
+    color: #6b7280;
+}
+
+.ev-urgent {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #fef3c7;
+    color: #d97706;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* 코인 정보 */
+.ev-coin-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: #f9fafb;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.ev-coin-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.ev-coin-icon img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+}
+
+.ev-coin-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ev-coin-symbol {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.ev-coin-amount {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #16a34a;
+}
+
+/* 카드 바디 */
+.ev-card-body {
+    padding: 20px;
+    flex: 1;
+}
+
+.ev-card-title {
+    font-size: clamp(1rem, 3vw, 1.125rem);
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 8px 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-.event-meta {
+.ev-card-desc {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+    color: #6b7280;
+    margin: 0 0 20px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* 진행 정보 */
+.ev-progress-info {
+    margin-top: auto;
+}
+
+.ev-progress-text {
     display: flex;
-    gap: 16px;
-    padding-top: 16px;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    padding-top: 12px;
     border-top: 1px solid #f3f4f6;
 }
 
-.meta-item {
+.ev-participants {
+    color: #6b7280;
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: #6b7280;
+    gap: 4px;
 }
 
-.meta-item i {
+.ev-participants i {
+    font-size: 0.875rem;
+}
+
+.ev-deadline {
+    font-weight: 700;
+    color: #374151;
+}
+
+.ev-deadline .text-danger {
+    color: #ef4444;
+}
+
+.ev-limit-status {
+    font-weight: 600;
+    color: #374151;
+}
+
+.ev-limit-status.text-danger {
+    color: #ef4444;
+}
+
+/* 참여 버튼 */
+.ev-card-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 16px;
+    background: #1f2937;
+    border: none;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.ev-card-action:hover {
+    background: #111827;
+}
+
+.ev-card-action:hover i {
+    transform: translateX(3px);
+}
+
+.ev-card-action i {
+    transition: transform 0.3s;
+}
+
+/* ===================================
+   플레이스홀더 스타일
+   =================================== */
+.ev-placeholder {
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+    border: 1px dashed #e5e7eb;
+}
+
+.ev-placeholder:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #e5e7eb;
+}
+
+.ev-placeholder-image {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ev-placeholder-icon-wrapper {
+    width: 80px;
+    height: 80px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
     color: #9ca3af;
 }
 
-/* 반응형 */
-@media (max-width: 992px) {
-    .event-grid {
+.ev-placeholder-icon {
+    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%) !important;
+}
+
+.ev-placeholder-icon i {
+    color: #9ca3af;
+}
+
+.ev-coming-soon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #fef3c7;
+    border-radius: 8px;
+    color: #92400e;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.ev-placeholder .ev-card-action {
+    background: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* ===================================
+   모바일 반응형
+   =================================== */
+@media (max-width: 768px) {
+    .ev-section {
+        padding: 40px 0;
+    }
+    
+    .ev-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .ev-view-all {
+        align-self: flex-end;
+    }
+    
+    .ev-tabs {
+        width: 100%;
+        padding: 4px;
+        gap: 4px;
+    }
+    
+    .ev-tab {
+        flex: 1;
+        padding: 8px 12px;
+        font-size: 0.8125rem;
+    }
+    
+    .ev-tab span:first-child {
+        display: none;
+    }
+    
+    .ev-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+    
+    .ev-card-image {
+        height: 140px;
+    }
+    
+    .ev-card-header,
+    .ev-card-header-overlay {
+        padding: 12px 16px;
+    }
+    
+    .ev-coin-info {
+        padding: 12px 16px;
+    }
+    
+    .ev-coin-icon {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .ev-card-body {
+        padding: 16px;
     }
 }
 
-@media (max-width: 576px) {
-    .event-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
+@media (max-width: 480px) {
+    .ev-section {
+        padding: 30px 0;
     }
     
-    .nav-pills .nav-link {
-        padding: 8px 16px;
-        font-size: 14px;
+    .ev-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .ev-tabs {
+        justify-content: space-between;
+    }
+    
+    .ev-tab-count {
+        display: none;
     }
 }
 </style>
 
 <script>
 // 이벤트 탭 전환
-document.querySelectorAll('#eventTabs .nav-link').forEach(tab => {
-    tab.addEventListener('click', function(e) {
-        e.preventDefault();
-        
+document.querySelectorAll('.ev-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
         // 활성 탭 변경
-        document.querySelectorAll('#eventTabs .nav-link').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.ev-tab').forEach(t => t.classList.remove('active'));
         this.classList.add('active');
         
-        // 이벤트 로드
+        // 이벤트 카드 필터링
         const status = this.getAttribute('data-status');
-        loadEvents(status);
+        filterEvents(status);
     });
 });
 
-// 이벤트 로드 함수
-function loadEvents(status) {
-    fetch(`<?php echo G5_URL; ?>/ajax/get_events.php?status=${status}`)
-        .then(response => response.json())
-        .then(data => {
-            const grid = document.getElementById('eventGrid');
-            grid.innerHTML = data.html;
-        });
+// 이벤트 필터링 함수
+function filterEvents(status) {
+    const cards = document.querySelectorAll('.ev-card');
+    
+    cards.forEach(card => {
+        const cardStatus = card.getAttribute('data-status');
+        
+        if (status === 'all' || cardStatus === status) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
 }
 
 // 이벤트 상세보기
 function viewEvent(eventId) {
-    // 모달로 이벤트 상세 표시
     window.location.href = `<?php echo G5_URL; ?>/event.php?ev_id=${eventId}`;
 }
 </script>
-
 <!-- =================================== -->
 <!-- 크립토 마케팅 소개 섹션 -->
 <!-- =================================== -->

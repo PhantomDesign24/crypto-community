@@ -458,6 +458,9 @@ include_once(G5_PATH.'/head.sub.php');
 			<a href="./event_list.php" class="sa-menu-item <?php echo ($current_page == 'event_list.php') ? 'active' : ''; ?>">
 				<i class="bi bi-gift"></i> 이벤트 관리
 			</a>
+			<a href="./consultation_list.php" class="sa-menu-item <?php echo ($current_page == 'consultation_list.php' || $current_page == 'consultation_view.php') ? 'active' : ''; ?>">
+				<i class="bi bi-headset"></i> 상담신청 관리
+			</a>
 			<a href="./sub_admin_notice.php" class="sa-menu-item <?php echo ($current_page == 'sub_admin_notice.php') ? 'active' : ''; ?>">
 				<i class="bi bi-megaphone"></i> 공지사항
 			</a>

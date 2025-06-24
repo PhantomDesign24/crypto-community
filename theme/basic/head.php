@@ -533,24 +533,224 @@ document.getElementById('simpleRegisterModal').addEventListener('click', functio
                 </div>
                 
                 <!-- 마켓 정보 (데스크톱) -->
-                <div class="col-lg-6 d-none d-lg-block">
-                    <div class="header-market-info justify-content-center">
-                        <!-- 비트코인 정보 -->
-                        <div class="market-item">
-                            <div class="market-coin">
-                                <div class="coin-icon">
-                                    <i class="bi bi-currency-bitcoin"></i>
-                                </div>
-                                <div class="coin-info">
-                                    <div class="coin-name">BTC/KRW</div>
-                                    <div class="coin-price">₩58,245,000</div>
-                                </div>
-                                <div class="coin-change positive">
-                                    <i class="bi bi-caret-up-fill"></i> +2.45%
-                                </div>
-                            </div>
-                        </div>
-                        
+				<div class="col-lg-6 d-none d-lg-block">
+					<div class="header-market-info justify-content-center">
+						<!-- 비트코인 정보 -->
+						<div class="market-item">
+							<div class="market-coin">
+								<div class="coin-icon">
+									<i class="bi bi-currency-bitcoin"></i>
+								</div>
+								<div class="coin-info">
+									<div class="coin-name">BTC/KRW</div>
+									<div class="coin-price header-btc-price">로딩중...</div>
+								</div>
+								<div class="coin-change header-btc-change positive">
+									<i class="bi bi-caret-up-fill"></i> +0.00%
+								</div>
+							</div>
+						</div>
+                        <!-- 비트코인 시세 실시간 업데이트 스크립트 (1시간 단위) -->
+<script>
+// 전역 변수
+let headerUpdateInterval = null;
+const CACHE_KEY = 'btc_price_cache';
+const CACHE_DURATION = 60 * 60 * 1000; // 1시간 (밀리초)
+
+// 숫자 포맷 함수
+function formatHeaderPrice(num) {
+    return new Intl.NumberFormat('ko-KR').format(Math.round(num));
+}
+
+// 캐시에서 데이터 가져오기
+function getCachedBtcPrice() {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+    
+    try {
+        const data = JSON.parse(cached);
+        const now = Date.now();
+        
+        // 캐시가 1시간 이내인 경우만 사용
+        if (data.timestamp && (now - data.timestamp) < CACHE_DURATION) {
+            return data;
+        }
+    } catch (e) {
+        console.error('캐시 파싱 오류:', e);
+    }
+    
+    return null;
+}
+
+// 캐시에 데이터 저장
+function setCachedBtcPrice(price, changePercent) {
+    const data = {
+        price: price,
+        changePercent: changePercent,
+        timestamp: Date.now()
+    };
+    
+    try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    } catch (e) {
+        console.error('캐시 저장 오류:', e);
+    }
+}
+// UI 업데이트 함수 (PC와 모바일 동시 업데이트)
+function updateBtcPriceUI(price, changePercent) {
+    // PC 헤더 업데이트
+    const priceElement = document.querySelector('.header-btc-price');
+    const changeElement = document.querySelector('.header-btc-change');
+    
+    if (priceElement) {
+        priceElement.textContent = '₩' + formatHeaderPrice(price);
+        
+        // 애니메이션 효과
+        priceElement.classList.add('price-updated');
+        setTimeout(() => {
+            priceElement.classList.remove('price-updated');
+        }, 300);
+    }
+    
+    if (changeElement) {
+        const isPositive = changePercent >= 0;
+        changeElement.className = 'coin-change header-btc-change ' + (isPositive ? 'positive' : 'negative');
+        changeElement.innerHTML = `
+            <i class="bi bi-caret-${isPositive ? 'up' : 'down'}-fill"></i> 
+            ${isPositive ? '+' : ''}${changePercent.toFixed(2)}%
+        `;
+    }
+    
+    // 모바일 메뉴 업데이트
+    const mobilePriceElement = document.querySelector('.mobile-btc-price');
+    const mobileChangeElement = document.querySelector('.mobile-btc-change');
+    
+    if (mobilePriceElement) {
+        mobilePriceElement.textContent = '₩' + formatHeaderPrice(price);
+    }
+    
+    if (mobileChangeElement) {
+        const isPositive = changePercent >= 0;
+        mobileChangeElement.className = 'coin-change mobile-btc-change ' + (isPositive ? 'positive' : 'negative');
+        mobileChangeElement.innerHTML = `
+            <i class="bi bi-caret-${isPositive ? 'up' : 'down'}-fill"></i> 
+            ${isPositive ? '+' : ''}${changePercent.toFixed(2)}%
+        `;
+    }
+}
+
+async function fetchBitcoinPrice() {
+    try {
+        const response = await fetch('<?php echo G5_URL; ?>/coinpan_api.php?action=coin&symbol=BTC', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',  // AJAX 요청 표시
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'  // 같은 도메인 쿠키 포함
+        });
+        
+        if (!response.ok) {
+            if (response.status === 403) {
+                throw new Error('접근이 거부되었습니다');
+            } else if (response.status === 429) {
+                throw new Error('요청이 너무 많습니다. 잠시 후 다시 시도하세요');
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success || !result.prices) {
+            throw new Error(result.error || '데이터 조회 실패');
+        }
+        
+        // 업비트 기준 가격 사용 (없으면 빗썸)
+        let btcPrice = null;
+        let changePercent = null;
+        
+        if (result.prices.upbit) {
+            btcPrice = result.prices.upbit.coin_data.price_krw;
+            changePercent = result.prices.upbit.coin_data.change_24h_percent;
+        } else if (result.prices.bithumb) {
+            btcPrice = result.prices.bithumb.coin_data.price_krw;
+            changePercent = result.prices.bithumb.coin_data.change_24h_percent;
+        }
+        
+        if (btcPrice) {
+            // 캐시에 저장
+            setCachedBtcPrice(btcPrice, changePercent);
+            
+            // UI 업데이트
+            updateBtcPriceUI(btcPrice, changePercent);
+            
+            return true;
+        }
+        
+        return false;
+        
+    } catch (error) {
+        console.error('비트코인 가격 조회 실패:', error);
+        return false;
+    }
+}
+
+// 비트코인 가격 업데이트 함수 (캐시 확인 포함)
+async function updateHeaderBitcoinPrice() {
+    // 먼저 캐시 확인
+    const cached = getCachedBtcPrice();
+    
+    if (cached) {
+        // 캐시된 데이터 표시
+        updateBtcPriceUI(cached.price, cached.changePercent);
+        console.log('캐시된 BTC 가격 사용');
+    } else {
+        // 캐시가 없거나 만료된 경우 새로 가져오기
+        console.log('새로운 BTC 가격 조회');
+        await fetchBitcoinPrice();
+    }
+}
+
+// 초기화 함수
+function initHeaderBitcoinTicker() {
+    // 첫 업데이트 (캐시 확인 포함)
+    updateHeaderBitcoinPrice();
+    
+    // 1시간마다 업데이트 (강제로 새 데이터 가져오기)
+    headerUpdateInterval = setInterval(async () => {
+        console.log('1시간 주기 업데이트 실행');
+        await fetchBitcoinPrice();
+    }, CACHE_DURATION);
+}
+
+// 페이지 로드 시 실행
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHeaderBitcoinTicker);
+} else {
+    initHeaderBitcoinTicker();
+}
+
+// 페이지 언로드 시 인터벌 정리
+window.addEventListener('beforeunload', () => {
+    if (headerUpdateInterval) {
+        clearInterval(headerUpdateInterval);
+    }
+});
+
+// 다른 탭에서 스토리지가 변경되었을 때 UI 업데이트
+window.addEventListener('storage', (e) => {
+    if (e.key === CACHE_KEY && e.newValue) {
+        try {
+            const data = JSON.parse(e.newValue);
+            updateBtcPriceUI(data.price, data.changePercent);
+            console.log('다른 탭에서 업데이트된 BTC 가격 반영');
+        } catch (error) {
+            console.error('스토리지 이벤트 처리 오류:', error);
+        }
+    }
+});
+</script>
+
                         <!-- USDT 거래 정보 -->
                         <div class="market-item">
                             <div class="usdt-trade-info">
@@ -591,7 +791,7 @@ document.getElementById('simpleRegisterModal').addEventListener('click', functio
                 <li><a href="<?php echo G5_URL ?>">
                     <i class="bi bi-house-door"></i> 홈
                 </a></li>
-                <li><a href="<?php echo G5_BBS_URL ?>/board.php?bo_table=listing">
+                <li><a href="<?php echo G5_URL ?>/listing_news.php">
                     <i class="bi bi-megaphone"></i> 신규상장소식
                 </a></li>
                 <li><a href="<?php echo G5_URL ?>/otc.php">
@@ -600,7 +800,7 @@ document.getElementById('simpleRegisterModal').addEventListener('click', functio
                 <li><a href="<?php echo G5_URL ?>/event.php">
                     <i class="bi bi-gift"></i> 이벤트
                 </a></li>
-                <li><a href="<?php echo G5_BBS_URL ?>/board.php?bo_table=community">
+                <li><a href="<?php echo G5_URL ?>/community.php">
                     <i class="bi bi-people"></i> 커뮤니티
                 </a></li>
                 <li><a href="<?php echo G5_URL ?>/consultation.php">
@@ -649,7 +849,6 @@ document.getElementById('simpleRegisterModal').addEventListener('click', functio
         <?php } ?>
     </div>
     
-    <!-- 모바일 시세 정보 -->
     <div class="mobile-market-widget">
         <h4>실시간 시세</h4>
         <div class="mobile-market-items">
@@ -657,8 +856,8 @@ document.getElementById('simpleRegisterModal').addEventListener('click', functio
                 <div class="coin-icon"><i class="bi bi-currency-bitcoin"></i></div>
                 <div class="coin-details">
                     <span class="coin-name">BTC/KRW</span>
-                    <span class="coin-price">₩58,245,000</span>
-                    <span class="coin-change positive"><i class="bi bi-caret-up-fill"></i> +2.45%</span>
+                    <span class="coin-price mobile-btc-price">로딩중...</span>
+                    <span class="coin-change mobile-btc-change positive"><i class="bi bi-caret-up-fill"></i> +0.00%</span>
                 </div>
             </div>
             <div class="mobile-usdt-item">
@@ -674,13 +873,12 @@ document.getElementById('simpleRegisterModal').addEventListener('click', functio
         </div>
     </div>
     
-    <!-- 모바일 메뉴 -->
     <nav class="mobile-nav-menu">
         <ul>
             <li><a href="<?php echo G5_URL ?>">
                 <i class="bi bi-house-door"></i> 홈
             </a></li>
-            <li><a href="<?php echo G5_BBS_URL ?>/board.php?bo_table=listing">
+            <li><a href="<?php echo G5_URL ?>/listing_news.php">
                 <i class="bi bi-megaphone"></i> 신규상장소식
             </a></li>
             <li><a href="<?php echo G5_URL ?>/otc.php">

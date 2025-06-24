@@ -8,6 +8,7 @@
  */
 
 include_once('./_common.php');
+include_once('./header.php');
 
 // ===================================
 // 접근 권한 확인
@@ -201,7 +202,7 @@ include_once(G5_PATH.'/head.sub.php');
     }
     
     .cmk-me-container {
-        max-width: 800px;
+        max-width: 100%;
         margin: 0 auto;
     }
     
@@ -711,5 +712,5 @@ function execDaumPostcode() {
 </html>
 
 <?php
-include_once(G5_PATH.'/tail.sub.php');
+include_once('/footer.php');
 ?>

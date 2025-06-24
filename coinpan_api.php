@@ -4,10 +4,120 @@
  * CoinPan API를 통한 실시간 암호화폐 시세 조회
  */
 
+// ===================================
+// 보안: 외부 접근 차단
+// ===================================
+
+// 현재 서버의 도메인 자동 감지
+$server_host = $_SERVER['HTTP_HOST'] ?? '';
+$server_name = $_SERVER['SERVER_NAME'] ?? '';
+
+// 허용된 도메인 설정 (자동 감지 + 수동 추가)
+$allowed_domains = [
+    'localhost',
+    '127.0.0.1',
+    $server_host,
+    $server_name,
+    // 추가 도메인이 필요한 경우 아래에 추가
+    // 'yourdomain.com',
+    // 'www.yourdomain.com'
+];
+
+// 중복 제거
+$allowed_domains = array_unique(array_filter($allowed_domains));
+
+// 현재 요청의 출처 확인
+$request_origin = $_SERVER['HTTP_HOST'] ?? '';
+$referer = $_SERVER['HTTP_REFERER'] ?? '';
+$remote_addr = $_SERVER['REMOTE_ADDR'] ?? '';
+
+// 1. 직접 접근 차단 (Referer 체크) - 단, 같은 도메인은 허용
+if (empty($referer)) {
+    // 같은 서버에서의 요청인지 확인
+    $is_same_server = false;
+    if (in_array($remote_addr, ['127.0.0.1', '::1']) || $remote_addr === $_SERVER['SERVER_ADDR']) {
+        $is_same_server = true;
+    }
+    
+    if (!$is_same_server) {
+        http_response_code(403);
+        die(json_encode(['error' => 'Direct access forbidden'], JSON_UNESCAPED_UNICODE));
+    }
+}
+
+// 2. Referer 도메인 체크
+if (!empty($referer)) {
+    $referer_host = parse_url($referer, PHP_URL_HOST);
+    if (!in_array($referer_host, $allowed_domains)) {
+        http_response_code(403);
+        die(json_encode(['error' => 'Access denied from this domain: ' . $referer_host], JSON_UNESCAPED_UNICODE));
+    }
+}
+
+// 3. AJAX 요청만 허용 (선택적 - 너무 엄격하면 주석처리)
+if (empty($_SERVER['HTTP_X_REQUESTED_WITH']) || 
+    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'xmlhttprequest') {
+    // 개발 중이거나 문제가 있으면 이 부분을 주석처리하세요
+    // http_response_code(403);
+    // die(json_encode(['error' => 'Only AJAX requests allowed'], JSON_UNESCAPED_UNICODE));
+}
+
+// 4. User-Agent 체크 (봇 차단)
+$user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+$bot_patterns = [
+    'bot', 'crawler', 'spider', 'scraper', 'curl', 'wget', 'python', 'java'
+];
+
+foreach ($bot_patterns as $pattern) {
+    if (stripos($user_agent, $pattern) !== false) {
+        http_response_code(403);
+        die(json_encode(['error' => 'Bot access denied'], JSON_UNESCAPED_UNICODE));
+    }
+}
+
+// 5. Rate Limiting (IP당 분당 요청 제한)
+session_start();
+$ip_key = 'api_limit_' . md5($remote_addr);
+$current_time = time();
+$limit_per_minute = 60; // 분당 최대 60회로 증가 (위젯 사용 고려)
+
+if (!isset($_SESSION[$ip_key])) {
+    $_SESSION[$ip_key] = [
+        'count' => 1,
+        'reset_time' => $current_time + 60
+    ];
+} else {
+    if ($current_time > $_SESSION[$ip_key]['reset_time']) {
+        $_SESSION[$ip_key] = [
+            'count' => 1,
+            'reset_time' => $current_time + 60
+        ];
+    } else {
+        $_SESSION[$ip_key]['count']++;
+        
+        if ($_SESSION[$ip_key]['count'] > $limit_per_minute) {
+            http_response_code(429);
+            die(json_encode([
+                'error' => 'Too many requests',
+                'retry_after' => $_SESSION[$ip_key]['reset_time'] - $current_time
+            ], JSON_UNESCAPED_UNICODE));
+        }
+    }
+}
+
+// ===================================
+// 원래 코드 시작
+// ===================================
+
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+// CORS 헤더는 같은 도메인에서만 허용
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array(parse_url($origin, PHP_URL_HOST), $allowed_domains)) {
+    header('Access-Control-Allow-Origin: ' . $origin);
+    header('Access-Control-Allow-Credentials: true');
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
+}
 
 // OPTIONS 요청 처리 (CORS preflight)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
