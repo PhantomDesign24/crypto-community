@@ -4,7 +4,7 @@
  * 위치: /sub_admin/event_list.php
  * 기능: 하부조직 이벤트 관리
  * 작성일: 2025-01-11
- * 수정일: 2025-01-23 (최고관리자 기능 추가)
+ * 수정일: 2025-01-24 (삭제 기능 추가)
  */
 
 define('_GNUBOARD_', true);
@@ -149,22 +149,20 @@ $result = sql_query($sql);
                         <option value="paid" <?php echo $status == 'paid' ? 'selected' : ''; ?>>지급완료</option>
                     </select>
                 </div>
-                
                 <div class="ev-form-group">
                     <select name="sfl" class="ev-form-select">
+                        <option value="m.mb_id" <?php echo $sfl == 'm.mb_id' ? 'selected' : ''; ?>>회원ID</option>
+                        <option value="m.mb_name" <?php echo $sfl == 'm.mb_name' ? 'selected' : ''; ?>>이름</option>
                         <option value="m.mb_nick" <?php echo $sfl == 'm.mb_nick' ? 'selected' : ''; ?>>닉네임</option>
-                        <option value="m.mb_id" <?php echo $sfl == 'm.mb_id' ? 'selected' : ''; ?>>아이디</option>
                         <option value="e.ev_subject" <?php echo $sfl == 'e.ev_subject' ? 'selected' : ''; ?>>이벤트명</option>
                         <?php if($is_admin) { ?>
                         <option value="m.mb_recommend" <?php echo $sfl == 'm.mb_recommend' ? 'selected' : ''; ?>>추천인</option>
                         <?php } ?>
                     </select>
                 </div>
-                
-                <div class="ev-form-group" style="flex: 1;">
-                    <input type="text" name="stx" value="<?php echo $stx; ?>" class="ev-form-control" placeholder="검색어를 입력하세요">
+                <div class="ev-form-group flex-grow-1">
+                    <input type="text" name="stx" value="<?php echo $stx; ?>" class="ev-form-input" placeholder="검색어를 입력하세요">
                 </div>
-                
                 <div class="ev-form-group">
                     <button type="submit" class="ev-btn ev-btn-primary">
                         <i class="bi bi-search"></i> 검색
@@ -174,88 +172,126 @@ $result = sql_query($sql);
         </form>
     </div>
     
-    <!-- 이벤트 신청 목록 -->
-    <div class="ev-table-wrap">
+    <!-- 선택 삭제 폼 시작 -->
+    <form name="flist" method="post" action="./event_list_update.php" onsubmit="return flist_submit(this);">
+    <input type="hidden" name="sfl" value="<?php echo $sfl ?>">
+    <input type="hidden" name="stx" value="<?php echo $stx ?>">
+    <input type="hidden" name="status" value="<?php echo $status ?>">
+    <input type="hidden" name="page" value="<?php echo $page ?>">
+    <input type="hidden" name="token" value="">
+
+    <?php if($is_admin) { // 최고관리자만 선택 삭제 가능 ?>
+    <div class="ev-batch-actions">
+        <button type="submit" name="act_button" value="선택삭제" class="ev-btn ev-btn-danger" onclick="document.pressed=this.value">
+            <i class="bi bi-trash"></i> 선택삭제
+        </button>
+    </div>
+    <?php } ?>
+    
+    <!-- 이벤트 신청 목록 테이블 -->
+    <div class="ev-table-responsive">
         <table class="ev-table">
             <thead>
                 <tr>
-                    <th>번호</th>
-                    <th>상태</th>
-                    <th>이벤트명</th>
-                    <th>신청자</th>
                     <?php if($is_admin) { ?>
-                    <th>추천인</th>
+                    <th class="ev-check-all">
+                        <input type="checkbox" id="chkall">
+                    </th>
                     <?php } ?>
-                    <th>지갑주소</th>
-                    <th>신청일시</th>
-                    <th>관리</th>
+                    <th class="ev-number">번호</th>
+                    <th class="ev-event">이벤트명</th>
+                    <th class="ev-user">신청자</th>
+                    <th class="ev-recommender">추천인</th>
+                    <th class="ev-reward">보상</th>
+                    <th class="ev-date">신청일시</th>
+                    <th class="ev-status">상태</th>
+                    <th class="ev-action">관리</th>
                 </tr>
             </thead>
             <tbody>
                 <?php
-                $num = $total_count - $from_record;
-                while($row = sql_fetch_array($result)) {
+                $list_num = $total_count - ($page - 1) * $rows;
+                for ($i=0; $row=sql_fetch_array($result); $i++) {
+                    // 상태 표시
+                    if($row['ea_status'] == 'applied') {
+                        $status_html = '<span class="ev-badge ev-badge-warning"><i class="bi bi-clock"></i> 승인 대기</span>';
+                    } else if($row['ea_status'] == 'paid') {
+                        $status_html = '<span class="ev-badge ev-badge-success"><i class="bi bi-check-circle"></i> 지급완료</span>';
+                    } else {
+                        $status_html = '<span class="ev-badge ev-badge-secondary">미정</span>';
+                    }
                 ?>
                 <tr>
-                    <td class="text-center"><?php echo $num--; ?></td>
-                    <td class="text-center">
-                        <?php if($row['ea_status'] == 'paid') { ?>
-                            <span class="ev-badge ev-badge-success">지급완료</span>
-                        <?php } else { ?>
-                            <span class="ev-badge ev-badge-warning">대기중</span>
-                        <?php } ?>
-                    </td>
-                    <td>
-                        <a href="<?php echo G5_URL; ?>/event.php?ev_id=<?php echo $row['ev_id']; ?>" target="_blank" class="ev-link">
-                            <?php echo $row['ev_subject']; ?>
-                        </a>
-                        <span class="ev-text-muted">(<?php echo $row['ev_coin_symbol']; ?> <?php echo $row['ev_coin_amount']; ?>)</span>
-                    </td>
-                    <td>
-                        <strong><?php echo $row['mb_nick']; ?></strong>
-                        <span class="ev-text-muted">(<?php echo $row['mb_id']; ?>)</span>
-                    </td>
                     <?php if($is_admin) { ?>
-                    <td class="text-center">
-                        <?php if($row['mb_recommend']) { ?>
-                            <a href="./member_list.php?sfl=mb_id&stx=<?php echo $row['mb_recommend']; ?>" class="ev-link">
-                                <?php echo $row['mb_recommend']; ?>
-                            </a>
-                        <?php } else { ?>
-                            <span class="ev-text-muted">-</span>
-                        <?php } ?>
+                    <td class="ev-check">
+                        <input type="hidden" name="ea_id[<?php echo $i ?>]" value="<?php echo $row['ea_id'] ?>">
+                        <input type="checkbox" name="chk[]" value="<?php echo $i ?>" id="chk_<?php echo $i ?>">
                     </td>
                     <?php } ?>
-                    <td>
-                        <code class="ev-code"><?php echo substr($row['ea_wallet_address'], 0, 10); ?>...<?php echo substr($row['ea_wallet_address'], -8); ?></code>
-                        <button class="ev-btn ev-btn-sm ev-btn-outline" onclick="copyToClipboard('<?php echo $row['ea_wallet_address']; ?>')">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
+                    <td class="ev-number"><?php echo $list_num; ?></td>
+                    <td class="ev-event">
+                        <a href="<?php echo G5_BBS_URL; ?>/board.php?bo_table=event&wr_id=<?php echo $row['ev_id']; ?>" target="_blank" class="ev-event-link">
+                            <?php echo $row['ev_subject']; ?>
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
                     </td>
-                    <td class="text-center"><?php echo date('Y-m-d H:i', strtotime($row['ea_datetime'])); ?></td>
-                    <td class="text-center">
-                        <?php if($row['ea_status'] == 'applied') { ?>
-                        <button onclick="paymentComplete(<?php echo $row['ea_id']; ?>)" class="ev-btn ev-btn-sm ev-btn-success">
-                            <i class="bi bi-check"></i> 지급완료
-                        </button>
-                        <button onclick="editApply(<?php echo $row['ea_id']; ?>, '<?php echo $row['ea_wallet_address']; ?>')" class="ev-btn ev-btn-sm ev-btn-primary">
-                            <i class="bi bi-pencil"></i> 수정
-                        </button>
+                    <td class="ev-user">
+                        <div class="ev-user-info">
+                            <span class="ev-user-name"><?php echo $row['mb_name']; ?></span>
+                            <span class="ev-user-id">(<?php echo $row['mb_id']; ?>)</span>
+                        </div>
+                    </td>
+                    <td class="ev-recommender"><?php echo $row['mb_recommend'] ? $row['mb_recommend'] : '-'; ?></td>
+                    <td class="ev-reward">
+                        <?php if($row['ev_coin_amount']) { ?>
+                            <span class="ev-coin-amount">
+                                <i class="bi bi-coin"></i>
+                                <?php echo number_format($row['ev_coin_amount']); ?> 
+                                <span class="ev-coin-symbol"><?php echo $row['ev_coin_symbol']; ?></span>
+                            </span>
                         <?php } else { ?>
-                        <button onclick="cancelPayment(<?php echo $row['ea_id']; ?>)" class="ev-btn ev-btn-sm ev-btn-warning">
-                            <i class="bi bi-arrow-counterclockwise"></i> 취소
-                        </button>
-                        <button class="ev-btn ev-btn-sm ev-btn-secondary" disabled>
-                            <i class="bi bi-check-all"></i> 지급됨
-                        </button>
+                            -
                         <?php } ?>
                     </td>
+                    <td class="ev-date"><?php echo substr($row['ea_datetime'], 0, 16); ?></td>
+                    <td class="ev-status">
+                        <?php if($is_admin) { // 최고관리자만 상태 변경 가능 ?>
+                        <select class="ev-status-select" data-ea-id="<?php echo $row['ea_id']; ?>" onchange="changeStatus(this)">
+                            <option value="applied" <?php echo $row['ea_status'] == 'applied' ? 'selected' : ''; ?>>승인 대기</option>
+                            <option value="paid" <?php echo $row['ea_status'] == 'paid' ? 'selected' : ''; ?>>지급완료</option>
+                        </select>
+                        <?php } else { ?>
+                        <?php echo $status_html; ?>
+                        <?php } ?>
+                    </td>
+                    <td class="ev-action">
+                        <div class="ev-action-buttons">
+                            <?php if($row['ea_status'] == 'applied') { ?>
+                                <a href="./event_pay.php?ea_id=<?php echo $row['ea_id']; ?>&<?php echo $qstr; ?>" 
+                                   class="ev-btn ev-btn-success"
+                                   onclick="return confirm('이벤트 보상을 지급하시겠습니까?');">
+                                    <i class="bi bi-check"></i> 승인
+                                </a>
+                            <?php } ?>
+                            
+                            <?php if($is_admin) { // 최고관리자만 개별 삭제 가능 ?>
+                                <a href="./event_delete.php?ea_id=<?php echo $row['ea_id']; ?>&<?php echo $qstr; ?>" 
+                                   class="ev-btn ev-btn-danger"
+                                   onclick="return confirm('정말 삭제하시겠습니까?\n\n삭제하면 복구할 수 없습니다.');">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            <?php } ?>
+                        </div>
+                    </td>
                 </tr>
-                <?php } ?>
+                <?php
+                    $list_num--;
+                }
                 
-                <?php if($total_count == 0) { ?>
+                if ($i == 0) {
+                ?>
                 <tr>
-                    <td colspan="<?php echo $is_admin ? '8' : '7'; ?>" class="text-center ev-empty">
+                    <td colspan="<?php echo $is_admin ? '9' : '8'; ?>" class="text-center ev-empty">
                         <i class="bi bi-inbox"></i>
                         <p>신청 내역이 없습니다.</p>
                     </td>
@@ -264,13 +300,14 @@ $result = sql_query($sql);
             </tbody>
         </table>
     </div>
+    </form>
     
     <!-- 페이징 -->
     <?php if($total_page > 1) { ?>
     <div class="ev-pagination">
         <?php
-        $pagelist = get_paging(10, $page, $total_page, '?'.http_build_query($_GET).'&page=');
-        echo $pagelist;
+        $qstr .= "&status={$status}";
+        echo get_paging(10, $page, $total_page, './event_list.php?'.$qstr.'&page=');
         ?>
     </div>
     <?php } ?>
@@ -285,40 +322,87 @@ $result = sql_query($sql);
             <li>모든 회원의 이벤트 신청 내역을 확인할 수 있습니다.</li>
             <li>추천인별로 검색하여 특정 하부조직의 신청 현황을 확인할 수 있습니다.</li>
             <li>지급 완료 처리 시 전광판에 자동으로 표시됩니다.</li>
+            <li>삭제 기능은 최고관리자만 사용 가능하며, 승인 완료된 건은 삭제할 수 없습니다.</li>
         </ul>
     </div>
 </div>
-
-<style>
-.ev-admin-info {
-    margin-top: 30px;
-}
-
-.ev-info-card {
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 12px;
-    padding: 20px;
-}
-
-.ev-info-card h4 {
-    font-size: 16px;
-    font-weight: 600;
-    color: #1e40af;
-    margin-bottom: 12px;
-}
-
-.ev-info-card ul {
-    margin: 0;
-    padding-left: 20px;
-}
-
-.ev-info-card li {
-    color: #3b82f6;
-    margin-bottom: 8px;
-}
-</style>
 <?php } ?>
+
+<script>
+// 전체 선택
+$(function() {
+    $("#chkall").click(function() {
+        var checked = $(this).is(":checked");
+        $("input[name='chk[]']").prop("checked", checked);
+    });
+});
+
+function flist_submit(f) {
+    var chk_count = 0;
+
+    for (var i=0; i<f.length; i++) {
+        if (f.elements[i].name == "chk[]" && f.elements[i].checked)
+            chk_count++;
+    }
+
+    if (!chk_count) {
+        alert(document.pressed + "할 항목을 하나 이상 선택하세요.");
+        return false;
+    }
+
+    if(document.pressed == "선택삭제") {
+        if(!confirm("선택한 자료를 정말 삭제하시겠습니까?\n\n삭제하면 복구할 수 없습니다.")) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// 상태 변경 함수
+function changeStatus(select) {
+    var ea_id = $(select).data('ea-id');
+    var status = $(select).val();
+    var originalValue = $(select).data('original-value');
+    
+    if(!originalValue) {
+        $(select).data('original-value', $(select).find('option:selected').val());
+    }
+    
+    if(!confirm('상태를 변경하시겠습니까?')) {
+        $(select).val($(select).data('original-value'));
+        return false;
+    }
+    
+    $.ajax({
+        url: './event_status_update.php',
+        type: 'POST',
+        data: {
+            ea_id: ea_id,
+            status: status
+        },
+        dataType: 'json',
+        success: function(response) {
+            if(response.success) {
+                alert('상태가 변경되었습니다.');
+                $(select).data('original-value', status);
+                
+                // 지급완료로 변경된 경우 승인 버튼 숨기기
+                if(status == 'paid') {
+                    $(select).closest('tr').find('.ev-btn-success').remove();
+                }
+            } else {
+                alert(response.message || '상태 변경 중 오류가 발생했습니다.');
+                $(select).val($(select).data('original-value'));
+            }
+        },
+        error: function() {
+            alert('상태 변경 중 오류가 발생했습니다.');
+            $(select).val($(select).data('original-value'));
+        }
+    });
+}
+</script>
 
 <style>
 /* ===================================
@@ -361,8 +445,8 @@ $result = sql_query($sql);
 }
 
 .ev-stat-icon.bg-primary {
-    background: #eff6ff;
-    color: #3b82f6;
+    background: #e0e7ff;
+    color: #4f46e5;
 }
 
 .ev-stat-icon.bg-warning {
@@ -376,8 +460,8 @@ $result = sql_query($sql);
 }
 
 .ev-stat-icon.bg-info {
-    background: #e0f2fe;
-    color: #0ea5e9;
+    background: #dbeafe;
+    color: #3b82f6;
 }
 
 .ev-stat-content {
@@ -387,44 +471,50 @@ $result = sql_query($sql);
 .ev-stat-value {
     font-size: 28px;
     font-weight: 700;
-    color: #1f2937;
-    line-height: 1;
+    color: #111827;
+    margin-bottom: 4px;
 }
 
 .ev-stat-label {
     font-size: 14px;
     color: #6b7280;
-    margin-top: 4px;
 }
 
-/* 검색 박스 */
+/* 검색 영역 */
 .ev-search-box {
     background: white;
-    padding: 20px;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    padding: 20px;
     margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .ev-search-form {
-    margin: 0;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .ev-form-row {
     display: flex;
     gap: 12px;
+    width: 100%;
     align-items: center;
 }
 
 .ev-form-group {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+}
+
+.ev-form-group.flex-grow-1 {
+    flex: 1;
 }
 
 .ev-form-select,
-.ev-form-control {
-    padding: 10px 16px;
-    border: 1px solid #e5e7eb;
+.ev-form-input {
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
     border-radius: 8px;
     font-size: 14px;
     background: white;
@@ -432,7 +522,7 @@ $result = sql_query($sql);
 }
 
 .ev-form-select:focus,
-.ev-form-control:focus {
+.ev-form-input:focus {
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
@@ -440,17 +530,21 @@ $result = sql_query($sql);
 
 /* 버튼 스타일 */
 .ev-btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
     text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ev-btn i {
+    font-size: 16px;
 }
 
 .ev-btn-primary {
@@ -465,184 +559,301 @@ $result = sql_query($sql);
 .ev-btn-success {
     background: #10b981;
     color: white;
+    padding: 6px 12px;
+    font-size: 12px;
 }
 
 .ev-btn-success:hover {
     background: #059669;
-}
-
-.ev-btn-warning {
-    background: #f59e0b;
     color: white;
 }
 
-.ev-btn-warning:hover {
-    background: #d97706;
-}
-
-.ev-btn-secondary {
-    background: #6b7280;
+.ev-btn-danger {
+    background: #ef4444;
     color: white;
-}
-
-.ev-btn-sm {
     padding: 6px 12px;
-    font-size: 13px;
+    font-size: 12px;
 }
 
-.ev-btn-outline {
-    background: transparent;
-    border: 1px solid #e5e7eb;
-    color: #6b7280;
+.ev-btn-danger:hover {
+    background: #dc2626;
+    color: white;
 }
 
-.ev-btn-outline:hover {
-    background: #f3f4f6;
+/* 선택 삭제 버튼 영역 */
+.ev-batch-actions {
+    margin-bottom: 15px;
 }
 
-/* 테이블 */
-.ev-table-wrap {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    overflow: hidden;
+/* 테이블 반응형 */
+.ev-table-responsive {
+    overflow-x: auto;
+    margin-bottom: 20px;
 }
 
+/* 테이블 스타일 */
 .ev-table {
     width: 100%;
-    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.ev-table th {
-    background: #f9fafb;
-    padding: 16px;
-    text-align: left;
-    font-weight: 600;
+.ev-table thead th {
+    background: #f8fafc;
     color: #374151;
+    font-weight: 600;
+    padding: 16px 12px;
+    text-align: center;
     border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
 }
 
-.ev-table td {
-    padding: 16px;
+.ev-table tbody td {
+    padding: 16px 12px;
+    text-align: center;
     border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
 }
 
 .ev-table tbody tr:hover {
     background: #f9fafb;
 }
 
-.ev-table tbody tr:last-child td {
-    border-bottom: none;
+/* 체크박스 열 */
+.ev-check-all {
+    width: 40px;
 }
 
-/* 배지 */
+.ev-check {
+    width: 40px;
+}
+
+/* 열 너비 */
+.ev-number {
+    width: 60px;
+}
+
+.ev-event {
+    min-width: 200px;
+}
+
+.ev-user {
+    min-width: 120px;
+}
+
+.ev-recommender {
+    min-width: 100px;
+}
+
+.ev-reward {
+    min-width: 120px;
+}
+
+.ev-date {
+    min-width: 140px;
+}
+
+.ev-status {
+    min-width: 100px;
+}
+
+.ev-action {
+    min-width: 120px;
+}
+
+/* 이벤트명 링크 */
+.ev-event-link {
+    color: #374151;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ev-event-link:hover {
+    color: #3b82f6;
+}
+
+.ev-event-link i {
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+/* 사용자 정보 */
+.ev-user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.ev-user-name {
+    font-weight: 500;
+    color: #374151;
+}
+
+.ev-user-id {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* 코인 표시 */
+.ev-coin-amount {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #3b82f6;
+    font-weight: 600;
+}
+
+.ev-coin-symbol {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* 상태 선택 박스 */
+.ev-status-select {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    background: white;
+    cursor: pointer;
+    min-width: 100px;
+}
+
+.ev-status-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 상태 배지 */
 .ev-badge {
-    display: inline-block;
-    padding: 4px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
 }
 
-.ev-badge-success {
-    background: #d1fae5;
-    color: #065f46;
+.ev-badge i {
+    font-size: 14px;
 }
 
 .ev-badge-warning {
     background: #fef3c7;
-    color: #92400e;
+    color: #d97706;
 }
 
-/* 코드 */
-.ev-code {
-    background: #f3f4f6;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-family: monospace;
-    font-size: 13px;
-    color: #374151;
+.ev-badge-success {
+    background: #d1fae5;
+    color: #059669;
 }
 
-/* 링크 */
-.ev-link {
-    color: #3b82f6;
-    text-decoration: none;
-    font-weight: 500;
+.ev-badge-secondary {
+    background: #e5e7eb;
+    color: #6b7280;
 }
 
-.ev-link:hover {
-    text-decoration: underline;
-}
-
-/* 텍스트 */
-.ev-text-muted {
-    color: #9ca3af;
-    font-size: 13px;
+/* 액션 버튼 */
+.ev-action-buttons {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
 }
 
 /* 빈 상태 */
 .ev-empty {
     padding: 60px 20px !important;
-    color: #9ca3af;
     text-align: center;
+    color: #9ca3af;
 }
 
 .ev-empty i {
     font-size: 48px;
     margin-bottom: 16px;
-    display: block;
+    opacity: 0.5;
 }
 
-/* 페이징 */
+.ev-empty p {
+    margin: 0;
+    font-size: 16px;
+}
+
+/* 페이지네이션 */
 .ev-pagination {
-    margin-top: 20px;
-    text-align: center;
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
 }
 
-.ev-pagination .pg_wrap {
-    display: inline-flex;
-    gap: 4px;
+/* 관리자 정보 카드 */
+.ev-admin-info {
+    margin-top: 30px;
 }
 
-.ev-pagination .pg_page,
-.ev-pagination .pg_current {
-    display: inline-block;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 14px;
-    text-decoration: none;
+.ev-info-card {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 20px;
 }
 
-.ev-pagination .pg_page {
-    background: white;
-    border: 1px solid #e5e7eb;
-    color: #374151;
-}
-
-.ev-pagination .pg_page:hover {
-    background: #f3f4f6;
-}
-
-.ev-pagination .pg_current {
-    background: #3b82f6;
-    color: white;
+.ev-info-card h4 {
+    font-size: 16px;
     font-weight: 600;
+    color: #1e40af;
+    margin-bottom: 12px;
 }
 
-/* 텍스트 정렬 */
-.text-center {
-    text-align: center;
+.ev-info-card ul {
+    margin: 0;
+    padding-left: 20px;
 }
 
-/* 반응형 */
+.ev-info-card li {
+    color: #3b82f6;
+    margin-bottom: 8px;
+}
+
+/* 모바일 반응형 */
 @media (max-width: 768px) {
     .ev-stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .ev-stat-card {
+        padding: 16px;
+    }
+    
+    .ev-stat-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+    
+    .ev-stat-value {
+        font-size: 20px;
+    }
+    
+    .ev-stat-label {
+        font-size: 12px;
+    }
+    
+    .ev-search-form {
+        flex-direction: column;
     }
     
     .ev-form-row {
-        flex-wrap: wrap;
+        flex-direction: column;
+        width: 100%;
     }
     
     .ev-form-group {
@@ -650,165 +861,30 @@ $result = sql_query($sql);
     }
     
     .ev-table {
-        font-size: 14px;
+        font-size: 12px;
     }
     
-    .ev-table th,
-    .ev-table td {
+    .ev-table thead th,
+    .ev-table tbody td {
         padding: 12px 8px;
     }
     
-    .ev-code {
-        font-size: 11px;
-        display: block;
-        margin-bottom: 4px;
+    .ev-btn {
+        padding: 8px 12px;
+        font-size: 12px;
     }
     
-    .ev-btn-sm {
-        font-size: 12px;
-        padding: 4px 8px;
+    .ev-btn i {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ev-stats-grid {
+        grid-template-columns: 1fr;
     }
 }
 </style>
-
-<script>
-// 클립보드 복사
-function copyToClipboard(text) {
-    // 구형 브라우저 대응
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-            alert('지갑 주소가 복사되었습니다.');
-        }).catch(() => {
-            fallbackCopyToClipboard(text);
-        });
-    } else {
-        fallbackCopyToClipboard(text);
-    }
-}
-
-// 폴백 복사 함수
-function fallbackCopyToClipboard(text) {
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.style.position = "fixed";
-    textArea.style.left = "-999999px";
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    
-    try {
-        document.execCommand('copy');
-        alert('지갑 주소가 복사되었습니다.');
-    } catch (err) {
-        alert('복사에 실패했습니다. 수동으로 복사해주세요.');
-    }
-    
-    document.body.removeChild(textArea);
-}
-
-// 지급 완료 처리
-function paymentComplete(ea_id) {
-    if(!confirm('지급 완료 처리하시겠습니까?')) {
-        return;
-    }
-    
-    fetch('<?php echo G5_URL; ?>/sub_admin/ajax/event_payment.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'ea_id=' + ea_id + '&action=pay'
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if(data.success) {
-            alert('지급 완료 처리되었습니다.');
-            location.reload();
-        } else {
-            alert(data.message || '처리 중 오류가 발생했습니다.');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('처리 중 오류가 발생했습니다.');
-    });
-}
-
-// 지급 취소 처리
-function cancelPayment(ea_id) {
-    if(!confirm('지급을 취소하고 대기 상태로 변경하시겠습니까?')) {
-        return;
-    }
-    
-    fetch('<?php echo G5_URL; ?>/sub_admin/ajax/event_payment.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: 'ea_id=' + ea_id + '&action=cancel'
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if(data.success) {
-            alert('대기 상태로 변경되었습니다.');
-            location.reload();
-        } else {
-            alert(data.message || '처리 중 오류가 발생했습니다.');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('처리 중 오류가 발생했습니다.');
-    });
-}
-
-// 신청 정보 수정
-function editApply(ea_id, current_address) {
-    const new_address = prompt('새 지갑 주소를 입력하세요:', current_address);
-    
-    if(new_address && new_address !== current_address) {
-        if(!confirm('지갑 주소를 변경하시겠습니까?')) {
-            return;
-        }
-        
-        fetch('<?php echo G5_URL; ?>/sub_admin/ajax/event_edit.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'ea_id=' + ea_id + '&wallet_address=' + encodeURIComponent(new_address)
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if(data.success) {
-                alert('수정되었습니다.');
-                location.reload();
-            } else {
-                alert(data.message || '수정 중 오류가 발생했습니다.');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('수정 중 오류가 발생했습니다.');
-        });
-    }
-}
-</script>
 
 <?php
 // 담당자가 관리하는 회원 목록 가져오기

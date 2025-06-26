@@ -795,7 +795,7 @@ window.addEventListener('storage', (e) => {
                     <i class="bi bi-megaphone"></i> 신규상장소식
                 </a></li>
                 <li><a href="<?php echo G5_URL ?>/otc.php">
-                    <i class="bi bi-currency-exchange"></i> OTC장외거래
+                    <i class="bi bi-currency-exchange"></i> 해외테더구매
                 </a></li>
                 <li><a href="<?php echo G5_URL ?>/event.php">
                     <i class="bi bi-gift"></i> 이벤트
@@ -882,7 +882,8 @@ window.addEventListener('storage', (e) => {
                 <i class="bi bi-megaphone"></i> 신규상장소식
             </a></li>
             <li><a href="<?php echo G5_URL ?>/otc.php">
-                <i class="bi bi-currency-exchange"></i> OTC장외거래
+                <i class="bi bi-currency-exchange"></i> 해외테더구매
+				
             </a></li>
             <li><a href="<?php echo G5_URL ?>/event.php">
                 <i class="bi bi-gift"></i> 이벤트
