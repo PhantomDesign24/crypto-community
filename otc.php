@@ -861,12 +861,12 @@ include_once('./_head.php');
     color: #0c4a6e;
 }
 
-.input-group-s {
+.input-group {
     display: flex;
     gap: 8px;
 }
 
-.input-group-s-text {
+.input-group-text {
     padding: 12px 16px;
     background: #f8fafc;
     border: 2px solid #e2e8f0;
@@ -1175,7 +1175,7 @@ include_once('./_head.php');
     gap: 12px;
 }
 
-.market-item {
+.market-item-otc {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1185,7 +1185,7 @@ include_once('./_head.php');
     border: 1px solid #e2e8f0;
 }
 
-.market-item.highlight {
+.market-item-otc.highlight {
     background: #dbeafe;
     border-color: #3b82f6;
 }
@@ -1394,11 +1394,11 @@ include_once('./_head.php');
                     <div class="feature-list">
                         <div class="feature-item">
                             <div class="feature-icon">
-                                <i class="bi bi-piggy-bank"></i>
+                                <i class="bi bi-globe"></i>
                             </div>
                             <div class="feature-text">
-                                <h4>저렴한 가격</h4>
-                                <p>국내 대비 약 2% 저렴</p>
+                                <h4>현지방문 불필요</h4>
+                                <p>해외 현지방문 없이 온라인으로 구매</p>
                             </div>
                         </div>
                         <div class="feature-item">
@@ -1407,7 +1407,7 @@ include_once('./_head.php');
                             </div>
                             <div class="feature-text">
                                 <h4>안전한 거래</h4>
-                                <p>공인 송금업체 이용</p>
+                                <p>해외송금 전문업체를 통한 안전거래</p>
                             </div>
                         </div>
                         <div class="feature-item">
@@ -1416,9 +1416,21 @@ include_once('./_head.php');
                             </div>
                             <div class="feature-text">
                                 <h4>빠른 처리</h4>
-                                <p>평균 1시간 이내</p>
+                                <p>평균 1시간 이내 신속한 입금</p>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- 추가 특징 설명 -->
+                    <div style="margin-top: 24px; padding: 20px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+                        <h4 style="font-size: 16px; font-weight: 600; color: #0369a1; margin-bottom: 12px;">
+                            <i class="bi bi-info-circle"></i> OTC 장외거래 안내
+                        </h4>
+                        <ul style="margin: 0; padding-left: 20px; color: #0c4a6e; font-size: 14px; line-height: 1.8;">
+                            <li>국내보다 저렴한 테더를 해외에서 현지방문 없이 바로 구매 가능한 OTC 장외거래</li>
+                            <li>모든 거래는 신청 후 담당자 1:1 배정을 통해 안전하게 진행됩니다</li>
+                            <li>해외송금업체를 통해 해외은행에서 입금 확인 후 즉시 처리됩니다</li>
+                        </ul>
                     </div>
                 </div>
                 
@@ -1450,8 +1462,16 @@ include_once('./_head.php');
                         <i class="bi bi-exclamation-triangle"></i>
                         <div class="notice-content">
                             <h4>중요 안내</h4>
-                            <p>국내거래소(업비트, 빗썸 등) 주소는 트래블룰로 인해 입금이 불가능합니다. 반드시 해외거래소 주소를 사용해주세요.</p>
+                            <p>국내거래소(업비트, 빗썸, 코인원, 코빗) 주소는 트래블룰로 인해 입금대기 또는 입금불가 상황이 발생할 수 있습니다. 반드시 해외거래소 주소를 사용해주세요. 국내거래소 주소로의 입금으로 인한 불이익 발생 시 책임지지 않습니다.</p>
                         </div>
+                    </div>
+                    
+                    <!-- 환율 변동 안내 -->
+                    <div style="margin-top: 16px; padding: 16px; background: #fefce8; border: 1px solid #fef08a; border-radius: 8px;">
+                        <p style="margin: 0; font-size: 13px; color: #713f12; line-height: 1.6;">
+                            <i class="bi bi-currency-exchange" style="margin-right: 6px;"></i>
+                            거래 중 발생하는 원화-달러 환율 변동으로 인한 이익/손실은 전적으로 구매자 본인의 선택임을 인지하시기 바랍니다.
+                        </p>
                     </div>
                 </div>
                 
@@ -1487,12 +1507,12 @@ include_once('./_head.php');
             <aside class="sidebar">
                 <!-- 실시간 시세 -->
                 <div class="price-card">
-                    <div class="price-label">현재 테더 구매가</div>
+                    <div class="price-label">해외 테더 매수가</div>
                     <div class="price-value">₩<?php echo number_format($final_buy_price); ?></div>
                     
                     <div class="market-price">
                         <span class="market-label">시장가</span>
-                        <span class="market-value">₩<?php echo number_format($base_price); ?></span>
+                        <span class="market-value">₩<?php echo number_format($market_data['upbit_price']); ?></span>
                     </div>
                     
                     <?php if($is_admin) { ?>
@@ -1507,7 +1527,7 @@ include_once('./_head.php');
                     <h3><i class="bi bi-graph-up"></i> 실시간 시세 비교</h3>
                     <div class="market-compare-grid">
                         <?php if($market_data['upbit_price'] > 0) { ?>
-                        <div class="market-item">
+                        <div class="market-item-otc">
                             <div class="market-source">
                                 <i class="bi bi-currency-exchange"></i>
                                 <span>국내거래소 평균 시장가</span>
@@ -1527,7 +1547,7 @@ include_once('./_head.php');
                         <?php } ?>
                         
                         <?php if($market_data['google_price'] > 0) { ?>
-                        <div class="market-item">
+                        <div class="market-item-otc">
                             <div class="market-source">
                                 <i class="bi bi-globe"></i>
                                 <span><?php echo $market_data['source'] == 'CoinGecko' ? 'CoinGecko' : 'Google'; ?></span>
@@ -1539,7 +1559,7 @@ include_once('./_head.php');
                         </div>
                         <?php } ?>
                         
-                        <div class="market-item highlight">
+                        <div class="market-item-otc highlight">
                             <div class="market-source">
                                 <i class="bi bi-shop"></i>
                                 <span>OTC 구매가</span>
@@ -1671,10 +1691,10 @@ include_once('./_head.php');
                 <!-- USDT 입력 -->
                 <div class="form-group" id="usdtInputGroup">
                     <label class="form-label">구매 수량 <span>*</span></label>
-                    <div class="input-group-s">
+                    <div class="input-group">
                         <input type="number" name="quantity" id="quantity" class="tether-input" 
                                placeholder="최소 1,000 USDT" required min="1000" step="0.01">
-                        <span class="input-group-s-text">USDT</span>
+                        <span class="input-group-text">USDT</span>
                     </div>
                     <p class="form-hint">최소 구매 수량: 1,000 USDT</p>
                     <div class="conversion-info" id="usdtToKrw" style="display: none;">
@@ -1686,10 +1706,10 @@ include_once('./_head.php');
                 <!-- 원화 입력 -->
                 <div class="form-group" id="krwInputGroup" style="display: none;">
                     <label class="form-label">구매 금액 <span>*</span></label>
-                    <div class="input-group-s">
+                    <div class="input-group">
                         <input type="number" id="krwAmount" class="tether-input" 
                                placeholder="원화 금액 입력" min="1000000" step="1000">
-                        <span class="input-group-s-text">원</span>
+                        <span class="input-group-text">원</span>
                     </div>
                     <p class="form-hint">최소 구매 금액: <?php echo number_format($min_quantity * $current_buy_price); ?>원</p>
                     <div class="conversion-info" id="krwToUsdt" style="display: none;">

@@ -7,7 +7,32 @@
  */
 
 if (!defined('_GNUBOARD_')) exit;
+// 캐시된 가격 정보 가져오기
+$usdt_price_cache = G5_DATA_PATH.'/cache/usdt_price.txt';
+$usdt_market_price = 1361; // 기본값
 
+if(file_exists($usdt_price_cache)) {
+    $cache_data = json_decode(file_get_contents($usdt_price_cache), true);
+    if(isset($cache_data['price'])) {
+        $usdt_market_price = $cache_data['price'];
+    }
+}
+
+// 가격 조정값 가져오기
+$sql = "SELECT * FROM g5_tether_price ORDER BY tp_id DESC LIMIT 1";
+$price_adjustment = sql_fetch($sql);
+
+if(!$price_adjustment) {
+    $buy_adjustment = 20;  // 기본 +20원
+    $sell_adjustment = -20; // 기본 -20원
+} else {
+    $buy_adjustment = $price_adjustment['tp_buy_adjustment'];
+    $sell_adjustment = $price_adjustment['tp_sell_adjustment'];
+}
+
+// 최종 가격 계산
+$usdt_buy_price = $usdt_market_price + $buy_adjustment;
+$usdt_sell_price = $usdt_market_price + $sell_adjustment;
 // 상단 파일 include
 include_once(G5_PATH.'/head.sub.php');
 ?>
@@ -29,6 +54,10 @@ include_once(G5_PATH.'/head.sub.php');
                         <i class="bi bi-gear"></i> 관리자
                     </a>
                     <?php } ?>
+                    <span class="mx-2">|</span>
+                    <a href="<?php echo G5_URL ?>/sub_admin">
+                        <i class="bi bi-gear"></i> 하부 관리자
+                    </a>
                     <span class="mx-2">|</span>
                     <a href="<?php echo G5_BBS_URL ?>/logout.php">
                         <i class="bi bi-box-arrow-right"></i> 로그아웃
@@ -536,234 +565,85 @@ document.getElementById('simpleRegisterModal').addEventListener('click', functio
 				<div class="col-lg-6 d-none d-lg-block">
 					<div class="header-market-info justify-content-center">
 						<!-- 비트코인 정보 -->
+<?php
+// head.php에 추가할 코드
+// 진행중인 이벤트 가져오기
+$event_sql = "SELECT ev_id, ev_subject FROM g5_event WHERE ev_status = 'ongoing' ORDER BY ev_id DESC LIMIT 5";
+$event_result = sql_query($event_sql);
+$header_events = array();
+while($row = sql_fetch_array($event_result)) {
+    $header_events[] = $row;
+}
+?>
+
+<!-- 비트코인 시세 대신 이벤트 롤링 -->
+<?php if(count($header_events) > 0) { ?>
+<div class="market-item">
+    <div class="event-rolling">
+        <div class="event-content">
+            <?php foreach($header_events as $event) { ?>
+            <a href="<?php echo G5_URL; ?>/event.php" class="event-text">
+                <i class="bi bi-gift"></i> <?php echo $event['ev_subject']; ?>
+            </a>
+            <?php } ?>
+            <!-- 복사본 -->
+            <?php foreach($header_events as $event) { ?>
+            <a href="<?php echo G5_URL; ?>/event.php" class="event-text">
+                <i class="bi bi-gift"></i> <?php echo $event['ev_subject']; ?>
+            </a>
+            <?php } ?>
+        </div>
+    </div>
+</div>
+
+<style>
+.event-rolling {
+    width: 300px;
+    height: 40px;
+    background: #6366f1;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+
+.event-content {
+    display: flex;
+    animation: scroll 20s linear infinite;
+}
+
+.event-text {
+    color: white;
+    padding: 0 30px;
+    white-space: nowrap;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.event-text:hover {
+    color: #fbbf24;
+}
+
+@keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+</style>
+<?php } ?>
+
+                        <!-- USDT 거래 정보 -->
 						<div class="market-item">
-							<div class="market-coin">
-								<div class="coin-icon">
-									<i class="bi bi-currency-bitcoin"></i>
+							<div class="usdt-trade-info">
+								<div class="trade-item">
+									<div class="trade-label">USDT 매수</div>
+									<div class="trade-price buy">₩<?php echo number_format($usdt_buy_price); ?></div>
 								</div>
-								<div class="coin-info">
-									<div class="coin-name">BTC/KRW</div>
-									<div class="coin-price header-btc-price">로딩중...</div>
-								</div>
-								<div class="coin-change header-btc-change positive">
-									<i class="bi bi-caret-up-fill"></i> +0.00%
+								<div class="trade-item">
+									<div class="trade-label">USDT 매도</div>
+									<div class="trade-price sell">₩<?php echo number_format($usdt_sell_price); ?></div>
 								</div>
 							</div>
 						</div>
-                        <!-- 비트코인 시세 실시간 업데이트 스크립트 (1시간 단위) -->
-<script>
-// 전역 변수
-let headerUpdateInterval = null;
-const CACHE_KEY = 'btc_price_cache';
-const CACHE_DURATION = 60 * 60 * 1000; // 1시간 (밀리초)
-
-// 숫자 포맷 함수
-function formatHeaderPrice(num) {
-    return new Intl.NumberFormat('ko-KR').format(Math.round(num));
-}
-
-// 캐시에서 데이터 가져오기
-function getCachedBtcPrice() {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
-    
-    try {
-        const data = JSON.parse(cached);
-        const now = Date.now();
-        
-        // 캐시가 1시간 이내인 경우만 사용
-        if (data.timestamp && (now - data.timestamp) < CACHE_DURATION) {
-            return data;
-        }
-    } catch (e) {
-        console.error('캐시 파싱 오류:', e);
-    }
-    
-    return null;
-}
-
-// 캐시에 데이터 저장
-function setCachedBtcPrice(price, changePercent) {
-    const data = {
-        price: price,
-        changePercent: changePercent,
-        timestamp: Date.now()
-    };
-    
-    try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    } catch (e) {
-        console.error('캐시 저장 오류:', e);
-    }
-}
-// UI 업데이트 함수 (PC와 모바일 동시 업데이트)
-function updateBtcPriceUI(price, changePercent) {
-    // PC 헤더 업데이트
-    const priceElement = document.querySelector('.header-btc-price');
-    const changeElement = document.querySelector('.header-btc-change');
-    
-    if (priceElement) {
-        priceElement.textContent = '₩' + formatHeaderPrice(price);
-        
-        // 애니메이션 효과
-        priceElement.classList.add('price-updated');
-        setTimeout(() => {
-            priceElement.classList.remove('price-updated');
-        }, 300);
-    }
-    
-    if (changeElement) {
-        const isPositive = changePercent >= 0;
-        changeElement.className = 'coin-change header-btc-change ' + (isPositive ? 'positive' : 'negative');
-        changeElement.innerHTML = `
-            <i class="bi bi-caret-${isPositive ? 'up' : 'down'}-fill"></i> 
-            ${isPositive ? '+' : ''}${changePercent.toFixed(2)}%
-        `;
-    }
-    
-    // 모바일 메뉴 업데이트
-    const mobilePriceElement = document.querySelector('.mobile-btc-price');
-    const mobileChangeElement = document.querySelector('.mobile-btc-change');
-    
-    if (mobilePriceElement) {
-        mobilePriceElement.textContent = '₩' + formatHeaderPrice(price);
-    }
-    
-    if (mobileChangeElement) {
-        const isPositive = changePercent >= 0;
-        mobileChangeElement.className = 'coin-change mobile-btc-change ' + (isPositive ? 'positive' : 'negative');
-        mobileChangeElement.innerHTML = `
-            <i class="bi bi-caret-${isPositive ? 'up' : 'down'}-fill"></i> 
-            ${isPositive ? '+' : ''}${changePercent.toFixed(2)}%
-        `;
-    }
-}
-
-async function fetchBitcoinPrice() {
-    try {
-        const response = await fetch('<?php echo G5_URL; ?>/coinpan_api.php?action=coin&symbol=BTC', {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',  // AJAX 요청 표시
-                'Content-Type': 'application/json'
-            },
-            credentials: 'same-origin'  // 같은 도메인 쿠키 포함
-        });
-        
-        if (!response.ok) {
-            if (response.status === 403) {
-                throw new Error('접근이 거부되었습니다');
-            } else if (response.status === 429) {
-                throw new Error('요청이 너무 많습니다. 잠시 후 다시 시도하세요');
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        if (!result.success || !result.prices) {
-            throw new Error(result.error || '데이터 조회 실패');
-        }
-        
-        // 업비트 기준 가격 사용 (없으면 빗썸)
-        let btcPrice = null;
-        let changePercent = null;
-        
-        if (result.prices.upbit) {
-            btcPrice = result.prices.upbit.coin_data.price_krw;
-            changePercent = result.prices.upbit.coin_data.change_24h_percent;
-        } else if (result.prices.bithumb) {
-            btcPrice = result.prices.bithumb.coin_data.price_krw;
-            changePercent = result.prices.bithumb.coin_data.change_24h_percent;
-        }
-        
-        if (btcPrice) {
-            // 캐시에 저장
-            setCachedBtcPrice(btcPrice, changePercent);
-            
-            // UI 업데이트
-            updateBtcPriceUI(btcPrice, changePercent);
-            
-            return true;
-        }
-        
-        return false;
-        
-    } catch (error) {
-        console.error('비트코인 가격 조회 실패:', error);
-        return false;
-    }
-}
-
-// 비트코인 가격 업데이트 함수 (캐시 확인 포함)
-async function updateHeaderBitcoinPrice() {
-    // 먼저 캐시 확인
-    const cached = getCachedBtcPrice();
-    
-    if (cached) {
-        // 캐시된 데이터 표시
-        updateBtcPriceUI(cached.price, cached.changePercent);
-        console.log('캐시된 BTC 가격 사용');
-    } else {
-        // 캐시가 없거나 만료된 경우 새로 가져오기
-        console.log('새로운 BTC 가격 조회');
-        await fetchBitcoinPrice();
-    }
-}
-
-// 초기화 함수
-function initHeaderBitcoinTicker() {
-    // 첫 업데이트 (캐시 확인 포함)
-    updateHeaderBitcoinPrice();
-    
-    // 1시간마다 업데이트 (강제로 새 데이터 가져오기)
-    headerUpdateInterval = setInterval(async () => {
-        console.log('1시간 주기 업데이트 실행');
-        await fetchBitcoinPrice();
-    }, CACHE_DURATION);
-}
-
-// 페이지 로드 시 실행
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initHeaderBitcoinTicker);
-} else {
-    initHeaderBitcoinTicker();
-}
-
-// 페이지 언로드 시 인터벌 정리
-window.addEventListener('beforeunload', () => {
-    if (headerUpdateInterval) {
-        clearInterval(headerUpdateInterval);
-    }
-});
-
-// 다른 탭에서 스토리지가 변경되었을 때 UI 업데이트
-window.addEventListener('storage', (e) => {
-    if (e.key === CACHE_KEY && e.newValue) {
-        try {
-            const data = JSON.parse(e.newValue);
-            updateBtcPriceUI(data.price, data.changePercent);
-            console.log('다른 탭에서 업데이트된 BTC 가격 반영');
-        } catch (error) {
-            console.error('스토리지 이벤트 처리 오류:', error);
-        }
-    }
-});
-</script>
-
-                        <!-- USDT 거래 정보 -->
-                        <div class="market-item">
-                            <div class="usdt-trade-info">
-                                <div class="trade-item">
-                                    <div class="trade-label">USDT 매수</div>
-                                    <div class="trade-price buy">₩1,450</div>
-                                </div>
-                                <div class="trade-item">
-                                    <div class="trade-label">USDT 매도</div>
-                                    <div class="trade-price sell">₩1,430</div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 
@@ -852,25 +732,110 @@ window.addEventListener('storage', (e) => {
     <div class="mobile-market-widget">
         <h4>실시간 시세</h4>
         <div class="mobile-market-items">
-            <div class="mobile-coin-item">
-                <div class="coin-icon"><i class="bi bi-currency-bitcoin"></i></div>
-                <div class="coin-details">
-                    <span class="coin-name">BTC/KRW</span>
-                    <span class="coin-price mobile-btc-price">로딩중...</span>
-                    <span class="coin-change mobile-btc-change positive"><i class="bi bi-caret-up-fill"></i> +0.00%</span>
-                </div>
-            </div>
-            <div class="mobile-usdt-item">
-                <div class="price-item">
-                    <span class="label">USDT 매수</span>
-                    <span class="price buy">₩1,450</span>
-                </div>
-                <div class="price-item">
-                    <span class="label">USDT 매도</span>
-                    <span class="price sell">₩1,430</span>
-                </div>
-            </div>
+<?php
+// head.php에 추가할 코드
+// 진행중인 이벤트 가져오기
+$event_sql = "SELECT ev_id, ev_subject FROM g5_event WHERE ev_status = 'ongoing' ORDER BY ev_id DESC LIMIT 5";
+$event_result = sql_query($event_sql);
+$header_events = array();
+while($row = sql_fetch_array($event_result)) {
+    $header_events[] = $row;
+}
+?>
+
+<!-- 비트코인 시세 대신 이벤트 롤링 -->
+<?php if(count($header_events) > 0) { ?>
+<div class="market-item">
+    <div class="event-rolling">
+        <div class="event-content">
+            <?php foreach($header_events as $event) { ?>
+            <a href="<?php echo G5_URL; ?>/event.php" class="event-text">
+                <i class="bi bi-gift"></i> <?php echo $event['ev_subject']; ?>
+            </a>
+            <?php } ?>
+            <!-- 복사본 -->
+            <?php foreach($header_events as $event) { ?>
+            <a href="<?php echo G5_URL; ?>/event.php" class="event-text">
+                <i class="bi bi-gift"></i> <?php echo $event['ev_subject']; ?>
+            </a>
+            <?php } ?>
         </div>
+    </div>
+</div>
+
+<style>
+.event-rolling {
+    width: 300px;
+    height: 40px;
+    background: #6366f1;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
+
+.event-content {
+    display: flex;
+    animation: scroll 20s linear infinite;
+}
+
+.event-text {
+    color: white;
+    padding: 0 30px;
+    white-space: nowrap;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.event-text:hover {
+    color: #fbbf24;
+}
+
+@keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+/* 모바일 */
+@media (max-width: 768px) {
+    .event-rolling {
+        width: 100%;
+        max-width: 250px;
+    }
+    
+    .event-text {
+        font-size: 12px;
+        padding: 0 20px;
+    }
+}
+</style>
+<?php } ?>
+
+<!-- 모바일 메뉴 - 비트코인 대신 이벤트 -->
+<?php if(count($header_events) > 0) { ?>
+<div class="mobile-coin-item">
+    <div class="coin-icon"><i class="bi bi-gift-fill"></i></div>
+    <div class="coin-details">
+        <span class="coin-name">진행중 이벤트</span>
+        <span class="coin-price"><?php echo $header_events[0]['ev_subject']; ?></span>
+        <span class="coin-change positive">
+            <a href="<?php echo G5_URL; ?>/event.php" style="color: inherit; text-decoration: none;">
+                <i class="bi bi-arrow-right-circle"></i> 참여하기
+            </a>
+        </span>
+    </div>
+</div>
+<?php } ?>
+			<div class="mobile-usdt-item">
+				<div class="price-item">
+					<span class="label">USDT 매수</span>
+					<span class="price buy">₩<?php echo number_format($usdt_buy_price); ?></span>
+				</div>
+				<div class="price-item">
+					<span class="label">USDT 매도</span>
+					<span class="price sell">₩<?php echo number_format($usdt_sell_price); ?></span>
+				</div>
+			</div>        </div>
     </div>
     
     <nav class="mobile-nav-menu">
@@ -941,4 +906,24 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+// USDT 가격 실시간 업데이트 (선택사항)
+function updateUsdtPrices() {
+    fetch('<?php echo G5_URL; ?>/ajax.usdt_price.php')
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                // 데스크톱 가격 업데이트
+                document.querySelector('.usdt-trade-info .trade-item:nth-child(1) .trade-price').textContent = '₩' + data.buy_price.toLocaleString();
+                document.querySelector('.usdt-trade-info .trade-item:nth-child(2) .trade-price').textContent = '₩' + data.sell_price.toLocaleString();
+                
+                // 모바일 가격 업데이트
+                document.querySelector('.mobile-usdt-item .price-item:nth-child(1) .price').textContent = '₩' + data.buy_price.toLocaleString();
+                document.querySelector('.mobile-usdt-item .price-item:nth-child(2) .price').textContent = '₩' + data.sell_price.toLocaleString();
+            }
+        })
+        .catch(error => console.error('USDT 가격 업데이트 오류:', error));
+}
+
+// 30초마다 가격 업데이트
+setInterval(updateUsdtPrices, 30000);
 </script>
