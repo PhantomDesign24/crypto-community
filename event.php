@@ -12,14 +12,6 @@ include_once('./_common.php');
 // 한국 시간대 설정
 date_default_timezone_set('Asia/Seoul');
 
-// 관리자 모드 체크 - 더 이상 필요 없음 (각 파일이 독립적으로 실행됨)
-// 이벤트 ID가 있으면 상세보기
-$ev_id = isset($_GET['ev_id']) ? (int)$_GET['ev_id'] : 0;
-if($ev_id > 0) {
-    include_once('./event_view.php');
-    return;
-}
-
 $g5['title'] = '에어드랍 이벤트';
 include_once(G5_PATH.'/head.php');
 
@@ -34,15 +26,31 @@ $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $rows = 12; // 한 페이지에 보여줄 이벤트 수
 $from_record = ($page - 1) * $rows;
 
+// 현재 시간
+$current_datetime = date('Y-m-d H:i:s');
+
+// 상태별 조건 설정 (날짜 기반)
+$where = "";
+if($status == 'ongoing') {
+    // 진행중: 시작일 <= 현재 <= 종료일
+    $where = "WHERE ev_start_date <= '{$current_datetime}' AND ev_end_date >= '{$current_datetime}'";
+} else if($status == 'scheduled') {
+    // 예정: 시작일 > 현재
+    $where = "WHERE ev_start_date > '{$current_datetime}'";
+} else if($status == 'ended') {
+    // 종료: 종료일 < 현재
+    $where = "WHERE ev_end_date < '{$current_datetime}'";
+}
+
 // 전체 이벤트 수
-$sql = "SELECT COUNT(*) as cnt FROM g5_event WHERE ev_status = '{$status}'";
+$sql = "SELECT COUNT(*) as cnt FROM g5_event {$where}";
 $row = sql_fetch($sql);
 $total_count = $row['cnt'];
 $total_page = ceil($total_count / $rows);
 
 // 이벤트 목록
 $sql = "SELECT * FROM g5_event 
-        WHERE ev_status = '{$status}'
+        {$where}
         ORDER BY ev_recommend DESC, ev_id DESC
         LIMIT {$from_record}, {$rows}";
 $result = sql_query($sql);
@@ -83,21 +91,21 @@ $result = sql_query($sql);
                 <a class="nav-link <?php echo $status == 'ongoing' ? 'active' : ''; ?>" 
                    href="<?php echo G5_URL; ?>/event.php?status=ongoing">
                     <i class="bi bi-play-circle"></i> 진행중
-                    <span class="badge bg-danger ms-1"><?php echo get_event_count('ongoing'); ?></span>
+                    <span class="badge bg-danger ms-1"><?php echo get_event_count_by_date('ongoing'); ?></span>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $status == 'scheduled' ? 'active' : ''; ?>" 
                    href="<?php echo G5_URL; ?>/event.php?status=scheduled">
                     <i class="bi bi-clock"></i> 진행예정
-                    <span class="badge bg-info ms-1"><?php echo get_event_count('scheduled'); ?></span>
+                    <span class="badge bg-info ms-1"><?php echo get_event_count_by_date('scheduled'); ?></span>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $status == 'ended' ? 'active' : ''; ?>" 
                    href="<?php echo G5_URL; ?>/event.php?status=ended">
                     <i class="bi bi-check-circle"></i> 진행종료
-                    <span class="badge bg-secondary ms-1"><?php echo get_event_count('ended'); ?></span>
+                    <span class="badge bg-secondary ms-1"><?php echo get_event_count_by_date('ended'); ?></span>
                 </a>
             </li>
         </ul>
@@ -127,7 +135,7 @@ $result = sql_query($sql);
                         $days_left = 0;
                     }
             ?>
-            <div class="event-card" onclick="location.href='<?php echo G5_URL; ?>/event.php?ev_id=<?php echo $event['ev_id']; ?>'">
+            <div class="event-card" onclick="location.href='<?php echo G5_URL; ?>/event_view.php?ev_id=<?php echo $event['ev_id']; ?>'">
                 <div class="event-card-inner">
                     <?php if($is_admin) { ?>
                     <!-- 관리자 메뉴 -->
@@ -322,7 +330,7 @@ $result = sql_query($sql);
                                 </div>
                             </td>
                             <td>
-                                <a href="<?php echo G5_URL; ?>/event.php?ev_id=<?php echo $participant['ev_id']; ?>" 
+                                <a href="<?php echo G5_URL; ?>/event_view.php?ev_id=<?php echo $participant['ev_id']; ?>" 
                                    class="event-link">
                                     <?php echo $participant['ev_subject']; ?>
                                 </a>
@@ -822,9 +830,21 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <?php
-// 헬퍼 함수들
-function get_event_count($status) {
-    $sql = "SELECT COUNT(*) as cnt FROM g5_event WHERE ev_status = '{$status}'";
+// 헬퍼 함수들 - 날짜 기반으로 수정
+function get_event_count_by_date($status) {
+    $current_datetime = date('Y-m-d H:i:s');
+    
+    if($status == 'ongoing') {
+        $where = "WHERE ev_start_date <= '{$current_datetime}' AND ev_end_date >= '{$current_datetime}'";
+    } else if($status == 'scheduled') {
+        $where = "WHERE ev_start_date > '{$current_datetime}'";
+    } else if($status == 'ended') {
+        $where = "WHERE ev_end_date < '{$current_datetime}'";
+    } else {
+        $where = "";
+    }
+    
+    $sql = "SELECT COUNT(*) as cnt FROM g5_event {$where}";
     $row = sql_fetch($sql);
     return $row['cnt'];
 }

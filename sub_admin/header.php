@@ -461,6 +461,9 @@ include_once(G5_PATH.'/head.sub.php');
 			<a href="./consultation_list.php" class="sa-menu-item <?php echo ($current_page == 'consultation_list.php' || $current_page == 'consultation_view.php') ? 'active' : ''; ?>">
 				<i class="bi bi-headset"></i> 상담신청 관리
 			</a>
+			<a href="./tether_list.php" class="sa-menu-item <?php echo ($current_page == 'tether_list.php' || $current_page == 'tether_view.php') ? 'active' : ''; ?>">
+				<i class="bi bi-currency-exchange"></i> 테더 구매 관리
+			</a>
 			<a href="./sub_admin_notice.php" class="sa-menu-item <?php echo ($current_page == 'sub_admin_notice.php') ? 'active' : ''; ?>">
 				<i class="bi bi-megaphone"></i> 공지사항
 			</a>

@@ -8,6 +8,10 @@
 
 include_once('./_common.php');
 
+// 에러 표시 (디버깅용 - 운영시 제거)
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 // ===================================
 // 초기 설정
 // ===================================
@@ -97,45 +101,46 @@ foreach($domestic_patterns as $pattern) {
 
 // USDT 실시간 가격 가져오기
 function get_current_usdt_price() {
-    $cache_file = G5_DATA_PATH.'/cache/usdt_price.txt';
+    // 캐시 디렉토리 확인 및 생성
+    $cache_dir = G5_DATA_PATH.'/cache';
+    if(!is_dir($cache_dir)) {
+        @mkdir($cache_dir, 0755, true);
+        @chmod($cache_dir, 0755);
+    }
+    
+    $cache_file = $cache_dir.'/usdt_price.txt';
     $cache_time = 300; // 5분
     
     if(file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
-        $data = json_decode(file_get_contents($cache_file), true);
-        return $data['price'];
+        $cached_data = @file_get_contents($cache_file);
+        if($cached_data) {
+            $data = @json_decode($cached_data, true);
+            if($data && isset($data['price'])) {
+                return $data['price'];
+            }
+        }
     }
     
-    // Google Finance 크롤링
-    $url = "https://www.google.com/finance/quote/USDT-KRW";
+    // 업비트 API 사용
+    $url = "https://api.upbit.com/v1/ticker?markets=KRW-USDT";
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $response = @curl_exec($ch);
     curl_close($ch);
     
-    if($http_code == 200 && $response) {
-        // data-last-price 속성에서 가격 추출
-        if(preg_match('/data-last-price="([0-9.]+)"/', $response, $matches)) {
-            $price = round((float)$matches[1]);
-            file_put_contents($cache_file, json_encode(['price' => $price, 'timestamp' => time()]));
-            return $price;
-        }
-        
-        // 대체 패턴
-        if(preg_match('/<div[^>]+class="YMlKec fxKbKc"[^>]*>([0-9,]+\.?[0-9]*)<\/div>/', $response, $matches)) {
-            $price_str = str_replace(',', '', $matches[1]);
-            $price = round((float)$price_str);
-            file_put_contents($cache_file, json_encode(['price' => $price, 'timestamp' => time()]));
+    if($response) {
+        $data = @json_decode($response, true);
+        if(isset($data[0]['trade_price'])) {
+            $price = round($data[0]['trade_price']);
+            @file_put_contents($cache_file, json_encode(['price' => $price, 'timestamp' => time()]));
             return $price;
         }
     }
     
-    return 1361; // 기본값 (최근 구글 가격 기준)
+    return 1361; // 기본값
 }
 
 // 현재 시장가격
@@ -152,63 +157,79 @@ if(!$adjustment) {
 }
 
 // 최종 가격 계산
-$base_price = $market_price + $buy_adjustment;
-$fee_rate = 0.02; // 수수료 2%
-$unit_price = round($base_price * (1 + $fee_rate));
+$unit_price = $market_price + $buy_adjustment;
 $total_price = $quantity * $unit_price;
 
 // ===================================
 // DB 저장
 // ===================================
 
-$sql = "INSERT INTO g5_tether_purchase SET
-        tp_quantity = '$quantity',
-        tp_price_krw = '$unit_price',
-        tp_total_krw = '$total_price',
-        tp_wallet_address = '".sql_real_escape_string($wallet_address)."',
-        tp_transfer_company = '".sql_real_escape_string($transfer_company)."',
-        tp_name = '".sql_real_escape_string($name)."',
-        tp_hp = '".sql_real_escape_string($hp)."',
-        tp_status = '0',
-        tp_datetime = '".G5_TIME_YMDHIS."',
-        tp_ip = '".$_SERVER['REMOTE_ADDR']."',
-        mb_id = '{$member['mb_id']}'";
+try {
+    $sql = "INSERT INTO g5_tether_purchase SET
+            tp_quantity = '$quantity',
+            tp_price_krw = '$unit_price',
+            tp_total_krw = '$total_price',
+            tp_wallet_address = '".sql_real_escape_string($wallet_address)."',
+            tp_transfer_company = '".sql_real_escape_string($transfer_company)."',
+            tp_name = '".sql_real_escape_string($name)."',
+            tp_hp = '".sql_real_escape_string($hp)."',
+            tp_status = '0',
+            tp_datetime = '".G5_TIME_YMDHIS."',
+            tp_ip = '".$_SERVER['REMOTE_ADDR']."',
+            mb_id = '{$member['mb_id']}'";
 
-sql_query($sql);
-$tp_id = sql_insert_id();
-
-// ===================================
-// 관리자 알림 메일 발송
-// ===================================
-
-if($config['cf_admin_email']) {
-    $subject = "[해외테더구매] 신규 신청 - ".$name;
-    
-    $content = "해외 테더 구매 신청이 접수되었습니다.\n\n";
-    $content .= "==== 신청 정보 ====\n";
-    $content .= "신청번호: #".$tp_id."\n";
-    $content .= "신청자: ".$name." (".$member['mb_id'].")\n";
-    $content .= "연락처: ".$hp."\n";
-    $content .= "구매수량: ".number_format($quantity, 2)." USDT\n";
-    $content .= "예상단가: ".number_format($unit_price)."원\n";
-    $content .= "예상금액: ".number_format($total_price)."원\n";
-    $content .= "송금업체: ".$transfer_company."\n";
-    $content .= "지갑주소: ".$wallet_address."\n";
-    $content .= "신청일시: ".G5_TIME_YMDHIS."\n\n";
-    $content .= "관리자 페이지에서 처리해주세요.\n";
-    $content .= G5_URL."/adm/tether_list.php";
-    
-    mailer($config['cf_admin_email_name'], $config['cf_admin_email'], $config['cf_admin_email'], $subject, $content, 1);
+    sql_query($sql);
+    $tp_id = sql_insert_id();
+} catch(Exception $e) {
+    alert('신청 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
 }
 
 // ===================================
-// 신청 완료 페이지로 이동
+// 관리자 알림 메일 발송 (선택사항)
 // ===================================
 
-// 신청 정보를 세션에 저장
-set_session('tp_id', $tp_id);
-set_session('tp_quantity', $quantity);
-set_session('tp_total', $total_price);
+if(!empty($config['cf_admin_email']) && function_exists('mailer')) {
+    try {
+        $subject = "[해외테더구매] 신규 신청 - ".$name;
+        
+        $content = "해외 테더 구매 신청이 접수되었습니다.\n\n";
+        $content .= "==== 신청 정보 ====\n";
+        $content .= "신청번호: #".$tp_id."\n";
+        $content .= "신청자: ".$name." (".$member['mb_id'].")\n";
+        $content .= "연락처: ".$hp."\n";
+        $content .= "구매수량: ".number_format($quantity, 2)." USDT\n";
+        $content .= "예상단가: ".number_format($unit_price)."원\n";
+        $content .= "예상금액: ".number_format($total_price)."원\n";
+        $content .= "송금업체: ".$transfer_company."\n";
+        $content .= "지갑주소: ".$wallet_address."\n";
+        $content .= "신청일시: ".G5_TIME_YMDHIS."\n\n";
+        $content .= "관리자 페이지에서 처리해주세요.\n";
+        $content .= G5_URL."/adm/tether_list.php";
+        
+        @mailer($config['cf_admin_email_name'], $config['cf_admin_email'], $config['cf_admin_email'], $subject, $content, 1);
+    } catch(Exception $e) {
+        // 메일 발송 실패해도 계속 진행
+    }
+}
 
-goto_url('./otc_complete.php');
+// ===================================
+// 신청 완료 처리
+// ===================================
+
+// 세션에 저장 (선택사항)
+if(function_exists('set_session')) {
+    @set_session('tp_id', $tp_id);
+    @set_session('tp_quantity', $quantity);
+    @set_session('tp_total', $total_price);
+}
+
+// 완료 메시지
+$message = '테더 구매 신청이 완료되었습니다.\n\n';
+$message .= '신청번호: #'.$tp_id.'\n';
+$message .= '구매수량: '.number_format($quantity, 2).' USDT\n';
+$message .= '예상금액: '.number_format($total_price).'원\n\n';
+$message .= '담당자가 곧 연락드리겠습니다.';
+
+// alert 함수 사용
+alert($message, './otc.php');
 ?>

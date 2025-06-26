@@ -114,13 +114,31 @@ if(!$config_row) {
 // USDT 실시간 가격 가져오기
 // ===================================
 
+// ===================================
+// USDT 실시간 가격 가져오기
+// ===================================
+
 function get_usdt_price() {
+    // 캐시 디렉토리 확인 및 생성
+    $cache_dir = G5_DATA_PATH.'/cache';
+    if(!is_dir($cache_dir)) {
+        @mkdir($cache_dir, 0755, true);
+        @chmod($cache_dir, 0755);
+    }
+    
     // 캐시 확인 (5분간 유지)
-    $cache_file = G5_DATA_PATH.'/cache/usdt_price.txt';
+    $cache_file = $cache_dir.'/usdt_price.txt';
     $cache_time = 300; // 5분
     
+    // 캐시 파일이 존재하고 유효한 경우
     if(file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
-        return json_decode(file_get_contents($cache_file), true);
+        $cached_data = @file_get_contents($cache_file);
+        if($cached_data) {
+            $data = json_decode($cached_data, true);
+            if($data && isset($data['price'])) {
+                return $data;
+            }
+        }
     }
     
     $price_data = array(
@@ -137,86 +155,63 @@ function get_usdt_price() {
     curl_setopt($ch, CURLOPT_URL, $upbit_url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
     curl_setopt($ch, CURLOPT_HTTPHEADER, array(
         'Accept: application/json',
-        'User-Agent: Mozilla/5.0'
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     ));
     $upbit_response = curl_exec($ch);
+    $upbit_error = curl_error($ch);
     curl_close($ch);
     
-    if($upbit_response) {
+    if($upbit_response && !$upbit_error) {
         $upbit_data = json_decode($upbit_response, true);
         if(isset($upbit_data[0]['trade_price'])) {
             $price_data['upbit_price'] = round($upbit_data[0]['trade_price']);
         }
     }
     
-    // 2. Google Finance에서 직접 크롤링
-    $url = "https://www.google.com/finance/quote/USDT-KRW";
+    // 2. CoinGecko API 사용 (Google Finance 대체)
+    $url = "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=krw";
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
     curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language: ko-KR,ko;q=0.9,en;q=0.8',
-        'Cache-Control: no-cache',
-        'Pragma: no-cache'
+        'Accept: application/json',
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     ));
     $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
     curl_close($ch);
     
-    if($http_code == 200 && $response) {
-        // data-last-price 속성에서 가격 추출
-        if(preg_match('/data-last-price="([0-9.]+)"/', $response, $matches)) {
-            $price_data['google_price'] = round((float)$matches[1]);
-        } else if(preg_match('/<div[^>]+class="YMlKec fxKbKc"[^>]*>([0-9,]+\.?[0-9]*)<\/div>/', $response, $matches)) {
-            $price_str = str_replace(',', '', $matches[1]);
-            $price_data['google_price'] = round((float)$price_str);
+    if($response && !$error) {
+        $data = json_decode($response, true);
+        if(isset($data['tether']['krw'])) {
+            $price_data['google_price'] = round($data['tether']['krw']);
+            $price_data['source'] = 'CoinGecko';
         }
     }
     
-    // 3. 실패시 CoinGecko API 사용
-    if($price_data['google_price'] == 0) {
-        $url = "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=krw";
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
-        $response = curl_exec($ch);
-        curl_close($ch);
-        
-        if($response) {
-            $data = json_decode($response, true);
-            if(isset($data['tether']['krw'])) {
-                $price_data['google_price'] = round($data['tether']['krw']);
-                $price_data['source'] = 'CoinGecko';
-            }
-        }
-    } else {
-        $price_data['source'] = 'Google Finance';
-    }
-    
-    // 기본 가격 설정 (Google 우선, 없으면 Upbit)
+    // 3. 기본 가격 설정
     if($price_data['google_price'] > 0) {
         $price_data['price'] = $price_data['google_price'];
     } else if($price_data['upbit_price'] > 0) {
         $price_data['price'] = $price_data['upbit_price'];
         $price_data['source'] = 'Upbit';
     } else {
+        // 둘 다 실패한 경우 기본값
         $price_data['price'] = 1361;
+        $price_data['upbit_price'] = 1361;
+        $price_data['google_price'] = 1361;
         $price_data['source'] = 'Default';
     }
     
     // 캐시 저장
-    file_put_contents($cache_file, json_encode($price_data));
+    @file_put_contents($cache_file, json_encode($price_data));
     
     return $price_data;
 }
@@ -1362,6 +1357,144 @@ include_once('./_head.php');
         margin: 20px;
     }
 }
+
+/* 주문 내역 헤더 */
+.orders-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.order-count {
+    font-size: 12px;
+    color: #94a3b8;
+    background: #f1f5f9;
+    padding: 4px 12px;
+    border-radius: 12px;
+}
+
+/* 로딩 */
+.order-loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.spinner-border {
+    width: 24px;
+    height: 24px;
+    border-width: 2px;
+}
+
+/* 페이징 */
+.order-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.page-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.page-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+.page-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.page-btn.active:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+.page-btn i {
+    font-size: 12px;
+}
+
+/* 주문 상세 정보 */
+.order-detail {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 12px;
+}
+
+.detail-label {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.detail-value {
+    color: #475569;
+    font-weight: 500;
+}
+
+.detail-value.wallet {
+    font-family: monospace;
+    font-size: 11px;
+    cursor: help;
+}
+
+.detail-value.amount {
+    color: #3b82f6;
+    font-weight: 600;
+}
+
+.order-memo {
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8fafc;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.order-memo i {
+    margin-right: 4px;
+    color: #94a3b8;
+}
+
+.order-status.cancelled {
+    background: #fef2f2;
+    color: #dc2626;
+}
 </style>
 
 <!-- ===================================
@@ -1613,45 +1746,20 @@ include_once('./_head.php');
                 
                 <!-- 내 신청 내역 -->
                 <div class="my-orders">
-                    <h3>내 신청 내역</h3>
-                    <?php if(sql_num_rows($my_result) > 0) { ?>
-                        <?php while($order = sql_fetch_array($my_result)) { 
-                            $status_class = '';
-                            $status_text = '';
-                            switch($order['tp_status']) {
-                                case 0:
-                                    $status_class = 'pending';
-                                    $status_text = '신청완료';
-                                    break;
-                                case 1:
-                                    $status_class = 'processing';
-                                    $status_text = '진행중';
-                                    break;
-                                case 2:
-                                    $status_class = 'completed';
-                                    $status_text = '완료';
-                                    break;
-                            }
-                        ?>
-                        <div class="order-item">
-                            <div class="order-header">
-                                <span class="order-number">#<?php echo $order['tp_id']; ?></span>
-                                <span class="order-status <?php echo $status_class; ?>"><?php echo $status_text; ?></span>
+                    <div class="orders-header">
+                        <h3>내 신청 내역</h3>
+                        <span class="order-count" id="orderCount"></span>
+                    </div>
+                    <div id="orderList" class="order-list">
+                        <div class="order-loading">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
                             </div>
-                            <div class="order-info">
-                                <span><?php echo number_format($order['tp_quantity']); ?> USDT</span>
-                                <span><?php echo date('m/d H:i', strtotime($order['tp_datetime'])); ?></span>
-                            </div>
+                            <span>불러오는 중...</span>
                         </div>
-                        <?php } ?>
-                    <?php } else { ?>
-                        <div class="empty-orders">
-                            <i class="bi bi-inbox"></i>
-                            <p>신청 내역이 없습니다</p>
-                        </div>
-                    <?php } ?>
-                </div>
-                
+                    </div>
+                    <div id="orderPaging"></div>
+                </div>                
                 <?php if($is_admin) { ?>
                 <button class="config-edit-btn" onclick="openConfigModal()">
                     <i class="bi bi-gear"></i> 설정 관리
@@ -1661,7 +1769,110 @@ include_once('./_head.php');
         </div>
     </div>
 </div>
+<script>
+	// 페이지 로드시 첫 페이지 불러오기
+document.addEventListener('DOMContentLoaded', function() {
+    loadOrders(1);
+});
 
+// 주문 내역 불러오기
+function loadOrders(page) {
+    const orderList = document.getElementById('orderList');
+    const orderPaging = document.getElementById('orderPaging');
+    const orderCount = document.getElementById('orderCount');
+    
+    // 로딩 표시
+    orderList.innerHTML = `
+        <div class="order-loading">
+            <div class="spinner-border spinner-border-sm" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span>불러오는 중...</span>
+        </div>
+    `;
+    
+    // AJAX 요청
+    fetch('<?php echo G5_URL; ?>/otc_orders.php?page=' + page)
+        .then(response => response.json())
+        .then(data => {
+            if(data.error) {
+                orderList.innerHTML = '<div class="empty-orders"><i class="bi bi-exclamation-circle"></i><p>' + data.error + '</p></div>';
+                return;
+            }
+            
+            // 총 개수 표시
+            if(data.total_count > 0) {
+                orderCount.textContent = '총 ' + data.total_count + '건';
+            } else {
+                orderCount.textContent = '';
+            }
+            
+            // 주문 내역 표시
+            if(data.orders.length > 0) {
+                let html = '';
+                data.orders.forEach(order => {
+                    html += `
+                        <div class="order-item">
+                            <div class="order-header">
+                                <span class="order-number">#${order.tp_id}</span>
+                                <span class="order-status ${order.status_class}">${order.status_text}</span>
+                            </div>
+                            <div class="order-info">
+                                <span>${order.quantity} USDT</span>
+                                <span>${order.datetime}</span>
+                            </div>
+                            <div class="order-detail">
+                                <div class="detail-row">
+                                    <span class="detail-label">송금업체</span>
+                                    <span class="detail-value">${order.transfer_company}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">입금주소</span>
+                                    <span class="detail-value wallet" title="${order.wallet_address}">
+                                        ${order.masked_wallet}
+                                    </span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">예상금액</span>
+                                    <span class="detail-value amount">₩${order.total_krw}</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">단가</span>
+                                    <span class="detail-value">₩${order.price_krw}</span>
+                                </div>
+                            </div>
+                            ${order.memo ? `
+                            <div class="order-memo">
+                                <i class="bi bi-chat-left-text"></i> ${order.memo}
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+                orderList.innerHTML = html;
+            } else {
+                orderList.innerHTML = `
+                    <div class="empty-orders">
+                        <i class="bi bi-inbox"></i>
+                        <p>신청 내역이 없습니다</p>
+                    </div>
+                `;
+            }
+            
+            // 페이징 표시
+            orderPaging.innerHTML = data.paging;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            orderList.innerHTML = `
+                <div class="empty-orders">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <p>데이터를 불러오는 중 오류가 발생했습니다.</p>
+                </div>
+            `;
+        });
+}
+</script>
 <!-- 신청 모달 -->
 <div id="applyModal" class="modal">
     <div class="modal-content">

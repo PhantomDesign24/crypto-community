@@ -19,14 +19,23 @@ $g5['title'] = '이벤트 작성';
 // 모드 구분 (w=u 수정, 없으면 신규)
 $w = isset($_GET['w']) ? $_GET['w'] : '';
 $ev_id = isset($_GET['ev_id']) ? (int)$_GET['ev_id'] : 0;
-$event = null;
+$event_2 = null;
 
 if($w == 'u' && $ev_id) {
-    $event = sql_fetch("SELECT * FROM g5_event WHERE ev_id = '{$ev_id}'");
-    if(!$event) {
+    $event_2 = sql_fetch("SELECT * FROM g5_event WHERE ev_id = '{$ev_id}'");
+    if(!$event_2) {
         alert('존재하지 않는 이벤트입니다.', G5_URL.'/event.php');
     }
     $g5['title'] = '이벤트 수정';
+    
+    // 디버깅: 데이터 확인
+    if($is_admin) {
+        echo "<!-- Debug: ";
+        echo "ev_subject: " . $event_2['ev_subject'] . "\n";
+        echo "ev_coin_name: " . $event_2['ev_coin_name'] . "\n";
+        echo "ev_start_date: " . $event_2['ev_start_date'] . "\n";
+        echo " -->";
+    }
 }
 
 // 폼 처리
@@ -60,7 +69,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
     
     // 이미지 업로드 처리
-    $ev_image = $event ? $event['ev_image'] : '';
+    $ev_image = $event_2 ? $event_2['ev_image'] : '';
     if(isset($_FILES['ev_image']) && $_FILES['ev_image']['error'] == 0) {
         $upload_dir = G5_DATA_PATH.'/event';
         if(!is_dir($upload_dir)) {
@@ -154,26 +163,26 @@ include_once(G5_PATH.'/head.php');
                         <div class="mb-3">
                             <label class="form-label">이벤트 제목 <span class="text-danger">*</span></label>
                             <input type="text" name="ev_subject" class="form-control" 
-                                   value="<?php echo $event ? htmlspecialchars($event['ev_subject']) : ''; ?>" required>
+                                   value="<?php echo $event_2 ? $event_2['ev_subject'] : ''; ?>" required>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">짧은 설명 (1-2줄) <span class="text-danger">*</span></label>
                             <input type="text" name="ev_summary" class="form-control" 
-                                   value="<?php echo $event ? htmlspecialchars($event['ev_summary']) : ''; ?>" 
+                                   value="<?php echo $event_2 ? $event_2['ev_summary'] : ''; ?>" 
                                    placeholder="메인 페이지에 표시될 짧은 설명을 입력하세요" required>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">상세 내용 <span class="text-danger">*</span></label>
-                            <textarea name="ev_content" id="ev_content" class="form-control" rows="10" required><?php echo $event ? htmlspecialchars($event['ev_content']) : ''; ?></textarea>
+                            <textarea name="ev_content" id="ev_content" class="form-control" rows="10" required><?php echo $event_2 ? $event_2['ev_content'] : ''; ?></textarea>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">대표 이미지</label>
-                            <?php if($event && $event['ev_image']) { ?>
+                            <?php if($event_2 && $event_2['ev_image']) { ?>
                             <div class="current-image mb-2">
-                                <img src="<?php echo G5_DATA_URL; ?>/event/<?php echo $event['ev_image']; ?>" 
+                                <img src="<?php echo G5_DATA_URL; ?>/event/<?php echo $event_2['ev_image']; ?>" 
                                      style="max-width: 200px; max-height: 200px;">
                                 <p class="text-muted small mt-1">현재 이미지</p>
                             </div>
@@ -192,7 +201,7 @@ include_once(G5_PATH.'/head.php');
                                 <div class="mb-3">
                                     <label class="form-label">코인명 <span class="text-danger">*</span></label>
                                     <input type="text" name="ev_coin_name" class="form-control" 
-                                           value="<?php echo $event ? htmlspecialchars($event['ev_coin_name']) : ''; ?>" 
+                                           value="<?php echo $event_2 ? $event_2['ev_coin_name'] : ''; ?>" 
                                            placeholder="예: 비트코인" required>
                                 </div>
                             </div>
@@ -200,7 +209,7 @@ include_once(G5_PATH.'/head.php');
                                 <div class="mb-3">
                                     <label class="form-label">심볼 <span class="text-danger">*</span></label>
                                     <input type="text" name="ev_coin_symbol" class="form-control" 
-                                           value="<?php echo $event ? htmlspecialchars($event['ev_coin_symbol']) : ''; ?>" 
+                                           value="<?php echo $event_2 ? $event_2['ev_coin_symbol'] : ''; ?>" 
                                            placeholder="예: BTC" required>
                                 </div>
                             </div>
@@ -208,7 +217,7 @@ include_once(G5_PATH.'/head.php');
                                 <div class="mb-3">
                                     <label class="form-label">지급 수량 <span class="text-danger">*</span></label>
                                     <input type="text" name="ev_coin_amount" class="form-control" 
-                                           value="<?php echo $event ? htmlspecialchars($event['ev_coin_amount']) : ''; ?>" 
+                                           value="<?php echo $event_2 ? $event_2['ev_coin_amount'] : ''; ?>" 
                                            placeholder="예: 100" required>
                                 </div>
                             </div>
@@ -219,11 +228,11 @@ include_once(G5_PATH.'/head.php');
                             <i class="bi bi-gear"></i> 이벤트 설정
                         </div>
                         
-                        <?php if($event) { 
+                        <?php if($event_2) { 
                             // 현재 상태 표시 (수정 모드에서만)
                             $now = time();
-                            $start_time = strtotime($event['ev_start_date']);
-                            $end_time = strtotime($event['ev_end_date']);
+                            $start_time = strtotime($event_2['ev_start_date']);
+                            $end_time = strtotime($event_2['ev_end_date']);
                             
                             if($now < $start_time) {
                                 $current_status = '진행예정';
@@ -248,9 +257,9 @@ include_once(G5_PATH.'/head.php');
                                     <label class="form-label">시작일시 <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <input type="date" name="ev_start_date" class="form-control" 
-                                               value="<?php echo $event ? date('Y-m-d', strtotime($event['ev_start_date'])) : date('Y-m-d'); ?>" required>
+                                               value="<?php echo $event_2 ? date('Y-m-d', strtotime($event_2['ev_start_date'])) : date('Y-m-d'); ?>" required>
                                         <input type="time" name="ev_start_time" class="form-control" 
-                                               value="<?php echo $event ? date('H:i', strtotime($event['ev_start_date'])) : '00:00'; ?>" required>
+                                               value="<?php echo $event_2 ? date('H:i', strtotime($event_2['ev_start_date'])) : '00:00'; ?>" required>
                                     </div>
                                 </div>
                             </div>
@@ -259,9 +268,9 @@ include_once(G5_PATH.'/head.php');
                                     <label class="form-label">종료일시 <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <input type="date" name="ev_end_date" class="form-control" 
-                                               value="<?php echo $event ? date('Y-m-d', strtotime($event['ev_end_date'])) : date('Y-m-d', strtotime('+7 days')); ?>" required>
+                                               value="<?php echo $event_2 ? date('Y-m-d', strtotime($event_2['ev_end_date'])) : date('Y-m-d', strtotime('+7 days')); ?>" required>
                                         <input type="time" name="ev_end_time" class="form-control" 
-                                               value="<?php echo $event ? date('H:i', strtotime($event['ev_end_date'])) : '23:59'; ?>" required>
+                                               value="<?php echo $event_2 ? date('H:i', strtotime($event_2['ev_end_date'])) : '23:59'; ?>" required>
                                     </div>
                                 </div>
                             </div>
@@ -279,7 +288,7 @@ include_once(G5_PATH.'/head.php');
                         <div class="mb-3">
                             <div class="form-check">
                                 <input type="checkbox" name="ev_recommend" class="form-check-input" id="ev_recommend" 
-                                       value="1" <?php echo ($event && $event['ev_recommend']) ? 'checked' : ''; ?>>
+                                       value="1" <?php echo ($event_2 && $event_2['ev_recommend']) ? 'checked' : ''; ?>>
                                 <label class="form-check-label" for="ev_recommend">
                                     <i class="bi bi-star-fill text-warning"></i> 메인 페이지에 추천 표시
                                 </label>

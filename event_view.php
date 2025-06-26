@@ -9,11 +9,13 @@
 
 include_once('./_common.php');
 
-// 이벤트 정보 가져오기
-$sql = "SELECT * FROM g5_event WHERE ev_id = '{$ev_id}'";
-$event = sql_fetch($sql);
 
-if(!$event['ev_id']) {
+// 이벤트 정보 가져오기
+$sql = "SELECT * FROM g5_event WHERE ev_id = '{$ev_id}' ";
+$event_2 = sql_fetch($sql);
+
+
+if(!$event_2['ev_id']) {
     alert('존재하지 않는 이벤트입니다.', G5_URL.'/event.php');
 }
 
@@ -28,8 +30,7 @@ if($member['mb_id']) {
     $my_apply = sql_fetch($sql);
     $is_applied = $my_apply ? true : false;
 }
-
-$g5['title'] = $event['ev_subject'] . ' - 에어드랍 이벤트';
+$g5['title'] = $event_2['ev_subject'] . ' - 에어드랍 이벤트';
 include_once(G5_PATH.'/head.php');
 
 // 한국 시간대 설정
@@ -37,8 +38,8 @@ date_default_timezone_set('Asia/Seoul');
 
 // 날짜 기반 상태 자동 판단
 $now = time();
-$start_time = strtotime($event['ev_start_date']);
-$end_time = strtotime($event['ev_end_date']);
+$start_time = strtotime($event_2['ev_start_date']);
+$end_time = strtotime($event_2['ev_end_date']);
 
 // 상태 변수
 $status = '';
@@ -101,7 +102,7 @@ $is_admin = $is_admin || $member['mb_level'] >= 10;
                     <!-- 이벤트 헤더 -->
                     <div class="event-detail-header">
                         <div class="event-status-badges">
-                            <?php if($event['ev_recommend']) { ?>
+                            <?php if($event_2['ev_recommend']) { ?>
                             <span class="badge bg-warning">
                                 <i class="bi bi-star-fill"></i> 추천
                             </span>
@@ -110,36 +111,36 @@ $is_admin = $is_admin || $member['mb_level'] >= 10;
                             <span class="badge bg-<?php echo $status_class; ?>"><?php echo $status_text; ?></span>
                         </div>
                         
-                        <h1 class="event-detail-title"><?php echo $event['ev_subject']; ?></h1>
+                        <h1 class="event-detail-title"><?php echo $event_2['ev_subject']; ?></h1>
                         
                         <div class="event-detail-meta">
                             <div class="meta-item">
                                 <i class="bi bi-calendar-event"></i>
-                                <?php echo date('Y.m.d H:i', strtotime($event['ev_start_date'])); ?> ~ 
-                                <?php echo date('Y.m.d H:i', strtotime($event['ev_end_date'])); ?>
+                                <?php echo date('Y.m.d H:i', strtotime($event_2['ev_start_date'])); ?> ~ 
+                                <?php echo date('Y.m.d H:i', strtotime($event_2['ev_end_date'])); ?>
                             </div>
                             <div class="meta-item">
                                 <i class="bi bi-eye"></i>
-                                조회 <?php echo number_format($event['ev_hit']); ?>
+                                조회 <?php echo number_format($event_2['ev_hit']); ?>
                             </div>
                             <div class="meta-item">
                                 <i class="bi bi-people"></i>
-                                참여 <?php echo number_format($event['ev_apply_count']); ?>명
+                                참여 <?php echo number_format($event_2['ev_apply_count']); ?>명
                             </div>
                         </div>
                     </div>
                     
                     <!-- 이벤트 이미지 -->
-                    <?php if($event['ev_image']) { ?>
+                    <?php if($event_2['ev_image']) { ?>
                     <div class="event-detail-image">
-                        <img src="<?php echo G5_DATA_URL; ?>/event/<?php echo $event['ev_image']; ?>" 
-                             alt="<?php echo $event['ev_subject']; ?>">
+                        <img src="<?php echo G5_DATA_URL; ?>/event/<?php echo $event_2['ev_image']; ?>" 
+                             alt="<?php echo $event_2['ev_subject']; ?>">
                     </div>
                     <?php } ?>
                     
                     <!-- 이벤트 내용 -->
                     <div class="event-detail-content">
-                        <?php echo conv_content($event['ev_content'], 2); ?>
+                        <?php echo conv_content($event_2['ev_content'], 2); ?>
                     </div>
                 </div>
                 
@@ -211,7 +212,7 @@ $is_admin = $is_admin || $member['mb_level'] >= 10;
                             <h5 class="airdrop-title">
                                 <i class="bi bi-gift"></i> 에어드랍 리워드
                             </h5>
-                            <?php if($event['ev_recommend']) { ?>
+                            <?php if($event_2['ev_recommend']) { ?>
                             <span class="recommend-tag">
                                 <i class="bi bi-star-fill"></i> HOT
                             </span>
@@ -220,14 +221,14 @@ $is_admin = $is_admin || $member['mb_level'] >= 10;
                         
                         <div class="airdrop-amount-display">
                             <div class="coin-badge">
-                                <span class="coin-symbol"><?php echo $event['ev_coin_symbol']; ?></span>
+                                <span class="coin-symbol"><?php echo $event_2['ev_coin_symbol']; ?></span>
                             </div>
                             <div class="amount-info">
                                 <div class="amount-value">
-                                    <?php echo number_format($event['ev_coin_amount']); ?>
-                                    <span class="amount-unit"><?php echo $event['ev_coin_symbol']; ?></span>
+                                    <?php echo number_format($event_2['ev_coin_amount']); ?>
+                                    <span class="amount-unit"><?php echo $event_2['ev_coin_symbol']; ?></span>
                                 </div>
-                                <div class="coin-name"><?php echo $event['ev_coin_name']; ?></div>
+                                <div class="coin-name"><?php echo $event_2['ev_coin_name']; ?></div>
                             </div>
                         </div>
                     </div>
@@ -238,7 +239,7 @@ $is_admin = $is_admin || $member['mb_level'] >= 10;
                             <i class="bi bi-calendar-check"></i>
                             <div class="info-detail">
                                 <span class="info-label">시작일</span>
-                                <span class="info-value"><?php echo date('Y.m.d', strtotime($event['ev_start_date'])); ?></span>
+                                <span class="info-value"><?php echo date('Y.m.d', strtotime($event_2['ev_start_date'])); ?></span>
                             </div>
                         </div>
                         
@@ -246,7 +247,7 @@ $is_admin = $is_admin || $member['mb_level'] >= 10;
                             <i class="bi bi-calendar-x"></i>
                             <div class="info-detail">
                                 <span class="info-label">종료일</span>
-                                <span class="info-value"><?php echo date('Y.m.d', strtotime($event['ev_end_date'])); ?></span>
+                                <span class="info-value"><?php echo date('Y.m.d', strtotime($event_2['ev_end_date'])); ?></span>
                             </div>
                         </div>
                         
@@ -254,7 +255,7 @@ $is_admin = $is_admin || $member['mb_level'] >= 10;
                             <i class="bi bi-people"></i>
                             <div class="info-detail">
                                 <span class="info-label">참여자</span>
-                                <span class="info-value"><?php echo number_format($event['ev_apply_count']); ?>명</span>
+                                <span class="info-value"><?php echo number_format($event_2['ev_apply_count']); ?>명</span>
                             </div>
                         </div>
                         

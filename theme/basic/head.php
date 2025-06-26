@@ -684,7 +684,7 @@ while($row = sql_fetch_array($event_result)) {
                     <i class="bi bi-people"></i> 커뮤니티
                 </a></li>
                 <li><a href="<?php echo G5_URL ?>/consultation.php">
-                    <i class="bi bi-headset"></i> 상담신청
+                    <i class="bi bi-headset"></i> 광고 상담 신청
                 </a></li>
             </ul>
         </div>
@@ -857,7 +857,7 @@ while($row = sql_fetch_array($event_result)) {
                 <i class="bi bi-people"></i> 커뮤니티
             </a></li>
             <li><a href="<?php echo G5_URL ?>/consultation.php">
-                <i class="bi bi-headset"></i> 상담신청
+                <i class="bi bi-headset"></i> 광고 상담 신청
             </a></li>
         </ul>
     </nav>
@@ -906,24 +906,4 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
-// USDT 가격 실시간 업데이트 (선택사항)
-function updateUsdtPrices() {
-    fetch('<?php echo G5_URL; ?>/ajax.usdt_price.php')
-        .then(response => response.json())
-        .then(data => {
-            if(data.success) {
-                // 데스크톱 가격 업데이트
-                document.querySelector('.usdt-trade-info .trade-item:nth-child(1) .trade-price').textContent = '₩' + data.buy_price.toLocaleString();
-                document.querySelector('.usdt-trade-info .trade-item:nth-child(2) .trade-price').textContent = '₩' + data.sell_price.toLocaleString();
-                
-                // 모바일 가격 업데이트
-                document.querySelector('.mobile-usdt-item .price-item:nth-child(1) .price').textContent = '₩' + data.buy_price.toLocaleString();
-                document.querySelector('.mobile-usdt-item .price-item:nth-child(2) .price').textContent = '₩' + data.sell_price.toLocaleString();
-            }
-        })
-        .catch(error => console.error('USDT 가격 업데이트 오류:', error));
-}
-
-// 30초마다 가격 업데이트
-setInterval(updateUsdtPrices, 30000);
 </script>
